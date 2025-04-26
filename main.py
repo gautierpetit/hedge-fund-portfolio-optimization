@@ -66,7 +66,7 @@ Bench_index = [
 
 Price.columns = Price_index
 Price.drop(index=Price[:3].index, inplace=True)
-Price.index = pd.to_datetime(Price.index, format="%Y-%m-%d")
+Price.index = pd.to_datetime(Price.index)
 Price = Price.astype(float)
 
 
@@ -155,6 +155,7 @@ Acf = pd.DataFrame(
     data=0,
     index=Returns.columns,
     columns=["ACF(1)", "ACF(2)", "ACF(3)", "ACF(4)", "ACF(5)"],
+    dtype=float,
 )
 
 for x in Returns.columns:
@@ -184,15 +185,17 @@ for x in Returns.columns:
 n = len(Returns.columns)
 
 JB_test = pd.DataFrame(
-    (n / 6) * (Returns.skew() ** 2 + (Returns.kurt() - 3) ** 2 / 4), columns=["JB"]
+    data=0, index=Returns.columns, columns=["JB", "p value", "Result"], dtype=float
 )
+
+JB_test["JB"] = (n / 6) * (Returns.skew() ** 2 + (Returns.kurt() - 3) ** 2 / 4)
 
 JB_test["p value"] = stats.distributions.chi2.sf(JB_test, 2)
 
 # result of the test reject normality @ 5%, i.e if p value < 0.05 or 5.99 for
 # Chi square(2)
 
-JB_test["Result"] = 0
+JB_test["Result"] = JB_test["Result"].astype(str)
 
 for x in JB_test.index:
     if JB_test.loc[x, "p value"] > 0.05:
@@ -219,21 +222,20 @@ if the p-value is less than a chosen significance level (e.g., 0.05 --> Chi
 square 10 DOF = 18.307), it suggests evidence of autocorrelation in the data.
 """
 
-LB_test = pd.DataFrame()
+LB_test = pd.DataFrame(
+    data=0, index=Returns.columns, columns=["LB-Q", "p value", "Result"], dtype=float
+)
 
 for x in Returns.columns:
-    LB_test = pd.concat(
-        [LB_test, acorr_ljungbox(Returns[x].dropna(), lags=[10])], ignore_index=True
-    )
-
-LB_test.columns = ["LB-Q", "p value"]
-LB_test.index = Returns.columns
+    LB_test.loc[x, "LB-Q"], LB_test.loc[x, "p value"] = acorr_ljungbox(
+        Returns[x].dropna(), lags=[10]
+    ).iloc[0]
 
 
 #  result of the test shows autocorrelation @ 5%, i.e if p value < 0.05 or
 # 18.307 for chi square(10)
 
-LB_test["Result"] = 0
+LB_test["Result"] = LB_test["Result"].astype(str)
 
 for x in LB_test.index:
     if LB_test.loc[x, "p value"] > 0.05:
@@ -260,7 +262,7 @@ effect up to the specified lag. If the p-value is below a chosen significance
 level (e.g., 0.05), it suggests evidence of ARCH effects in the data.
 """
 
-ARCH_test = pd.DataFrame(data=0, index=Returns.columns, columns=["ARCH", "p value"])
+ARCH_test = pd.DataFrame(data=0, index=Returns.columns, columns=["ARCH", "p value", "Result" ], dtype= float)
 
 for x in Returns.columns:
     # Create an ARCH(4) model
@@ -280,7 +282,7 @@ for x in Returns.columns:
 # result of the test shows ARCH effect @ 5%, i.e if p value < 0.05 or 9.488 for
 # chi square(4)
 
-ARCH_test["Result"] = 0
+ARCH_test["Result"] = ARCH_test["Result"].astype(str)
 
 for x in ARCH_test.index:
     if ARCH_test.loc[x, "p value"] > 0.05:
@@ -347,7 +349,7 @@ table_2.columns = [
 del JB_test, LB_test, ARCH_test
 
 
-with pd.ExcelWriter("Code/Final/Indexes summary.xlsx") as writer:
+with pd.ExcelWriter("Indexes summary.xlsx") as writer:
     table.to_excel(writer, sheet_name="Stats")
     table_2.to_excel(writer, sheet_name="Tests")
 del writer
@@ -365,7 +367,7 @@ plt.legend(Returns.columns, loc="upper center", bbox_to_anchor=(0.5, -0.06), nco
 plt.autoscale(tight="x")
 plt.ylabel("Index returns")
 plt.xlabel("Time")
-plt.savefig("Code/Final/Returns.png")
+plt.savefig("Returns.png")
 
 Price.plot(figsize=(16, 9))
 plt.autoscale(tight="x")
@@ -374,7 +376,7 @@ plt.xlabel("Time")
 plt.ylim(0, 30000)
 plt.legend(Price.columns, loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=5)
 plt.title("Prices of of HFRI indices")
-plt.savefig("Code/Final/Price.png")
+plt.savefig("Price.png")
 
 
 ###############################################################################
@@ -834,7 +836,7 @@ def cdar(returns, alpha):
     cumulative_returns = np.cumsum(returns)
     running_max = np.maximum.accumulate(cumulative_returns)
     drawdowns = cumulative_returns - running_max
-    
+
     sorted_drawdowns = np.sort(drawdowns)
     n = len(sorted_drawdowns)
     index = int(np.floor(alpha * n))
@@ -847,7 +849,7 @@ def cdar(returns, alpha):
 def omega_ratio(returns, threshold):
     """
     Calculate the Omega ratio of a portfolio.
-    
+
     Parameters:
     returns (numpy array): Array of portfolio returns.
     threshold (float): Threshold return.
@@ -857,7 +859,7 @@ def omega_ratio(returns, threshold):
     """
 
     excess_returns = returns - threshold
-    
+
     gains = excess_returns[returns - threshold >= 0]
     losses = -excess_returns[threshold - returns > 0]
 
@@ -872,7 +874,6 @@ def omega_ratio(returns, threshold):
     omega = positive_area / negative_area
 
     return omega
-
 
 
 def omega_denum(returns, mar):
