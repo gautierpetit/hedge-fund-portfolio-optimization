@@ -22,6 +22,9 @@ import seaborn as sns
 import copy
 from sklearn.linear_model import LinearRegression
 
+# Custom files
+import portfolios_functions as pf
+
 
 ###############################################################################
 
@@ -795,675 +798,6 @@ for i in range(rw_corr_number):
 
 del i
 
-###############################################################################
-
-
-#                           Portfolios creation                               #
-
-
-###############################################################################
-
-# Function needed to define portfolios algorythms
-
-
-def cvar(returns, alpha):
-    """
-    Compute the Conditional Value at Risk (CVaR) of returns.
-    alpha = 1- confidence level
-
-    Parameters:
-    returns (ndarray): Array of returns.
-    alpha (float): Significance level (0 < alpha < 1).
-
-    Returns:
-    float: CVaR of returns.
-    """
-
-    sorted_returns = np.sort(returns)
-    n = len(sorted_returns)
-    index = int(np.floor(alpha * n))
-
-    cvar = -np.mean(sorted_returns[:index])
-
-    return cvar
-
-
-def cdar(returns, alpha):
-    """
-    Compute the Conditional Drawdown at Risk (CDaR) of returns.
-    alpha = 1- confidence level
-
-    Parameters:
-    returns (ndarray): Array of returns.
-    alpha (float): Significance level (0 < alpha < 1).
-
-    Returns:
-    float: CDaR of returns.
-    """
-    cumulative_returns = np.cumsum(returns)
-    running_max = np.maximum.accumulate(cumulative_returns)
-    drawdowns = cumulative_returns - running_max
-
-    sorted_drawdowns = np.sort(drawdowns)
-    n = len(sorted_drawdowns)
-    index = int(np.floor(alpha * n))
-
-    cdar = -np.mean(sorted_drawdowns[:index])
-
-    return cdar
-
-
-def omega_ratio(returns, threshold):
-    """
-    Calculate the Omega ratio of a portfolio.
-
-    Parameters:
-    returns (numpy array): Array of portfolio returns.
-    threshold (float): Threshold return.
-
-    Returns:
-    float: Omega ratio.
-    """
-
-    excess_returns = returns - threshold
-
-    gains = excess_returns[returns - threshold >= 0]
-    losses = -excess_returns[threshold - returns > 0]
-
-    positive_area = np.mean(gains)
-    negative_area = np.mean(losses)
-
-    # If there are no losses, return infinity
-    if negative_area == 0:
-        return np.inf
-
-    # Calculate the Omega ratio
-    omega = positive_area / negative_area
-
-    return omega
-
-
-def omega_denum(returns, mar):
-    """
-    Calculate the denominator of the omega ratio.
-
-    Parameters:
-    returns (ndarray): Array of returns.
-    mar (float): Minimum acceptable return (MAR) or threshold return.
-
-    Returns:
-    float: Omega denumerator.
-    """
-    negative_returns = returns[returns < mar]
-    negative_weighted_average = -np.mean(negative_returns)
-
-    denum = negative_weighted_average
-
-    return denum
-
-
-###############################################################################
-
-# Portfolios declined into conservative and aggressive per unit of risk:
-
-# Minimum risk portfolios (Minimize risk):
-
-
-def MVP(
-    stcks,
-    prev_weights=None,
-    turnover_penalty=0.0,
-    corr_sp=None,
-    maxcorr_sp=1.0,
-    corr_bond=None,
-    maxcorr_bond=1.0,
-):
-    """
-    Compute the Minimum variance portfolio.
-
-    Parameters:
-    stcks (DataFrame): Dataframe of returns.
-    prev_weights (ndarray): Array of previous weight neccessary for turnover minimization.
-    turnover_penalty (float): Factor on turnover penalty in objective function
-
-    Returns:
-    ndarray: Array of weights.
-    """
-    nbrstocks = len(stcks.transpose())
-
-    # Optimization parameters
-    ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones(nbrstocks) / nbrstocks
-    covariance = stcks.cov()
-
-    # Constraint on sum of weights equal one
-    constraints = [{"type": "eq", "fun": lambda x: np.dot(ones.T, x) - 1}]
-    if corr_sp is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_sp) + maxcorr_sp}
-        )
-    if corr_bond is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_bond) + maxcorr_bond}
-        )
-
-    # Objective function
-    def objective(x):
-
-        obj_value = (x.T @ covariance @ x) ** 0.5
-
-        if prev_weights is not None:
-            w0 = prev_weights
-            length_diff = len(x) - len(w0)
-
-            if length_diff > 0:
-                w0 = np.vstack([w0, np.array([[0]] * length_diff)])
-
-            turnover = np.sum(np.abs(x - w0))
-            obj_value += turnover_penalty * turnover
-        return obj_value
-
-    result = minimize(
-        lambda x: objective(x),
-        weight_equal,
-        method="SLSQP",
-        tol=1e-10,
-        # Max individual weight of 50% to force diversification
-        bounds=[(0, 0.5) for _ in range(nbrstocks)],
-        constraints=constraints,
-    )
-    return result.x
-
-
-def CVAR(
-    stcks,
-    prev_weights=None,
-    turnover_penalty=0.0,
-    corr_sp=None,
-    maxcorr_sp=1.0,
-    corr_bond=None,
-    maxcorr_bond=1.0,
-):
-    """
-    Conditional Value at risk (CVAR or Expected Shortfall), minimize average monthly loss at 95%
-
-    Parameters:
-    stcks (DataFrame): Dataframe of returns.
-    prev_weights (ndarray): Array of previous weight neccessary for turnover minimization.
-    turnover_penalty (float): Factor on turnover penalty in objective function
-
-    Returns:
-    ndarray: Array of weights.
-    """
-    nbrstocks = len(stcks.transpose())
-
-    # Optimization parameters
-    ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones(nbrstocks) / nbrstocks
-
-    def portfolio_return(weights):
-        return np.dot(stcks.values, weights)
-
-    # Constraint on sum of weights equal one
-    constraints = [{"type": "eq", "fun": lambda x: np.dot(ones.T, x) - 1}]
-    if corr_sp is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_sp) + maxcorr_sp}
-        )
-    if corr_bond is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_bond) + maxcorr_bond}
-        )
-
-    # Objective function
-    def objective(x):
-
-        portfolio_ret = portfolio_return(x)
-        obj_value = cvar(portfolio_ret, 0.05)
-
-        if prev_weights is not None:
-            w0 = prev_weights
-            length_diff = len(x) - len(w0)
-
-            if length_diff > 0:
-                w0 = np.vstack([w0, np.array([[0]] * length_diff)])
-
-            turnover = np.sum(np.abs(x - w0))
-            obj_value += turnover_penalty * turnover
-        return obj_value
-
-    result = minimize(
-        lambda x: objective(x),
-        weight_equal,
-        method="SLSQP",
-        tol=1e-10,
-        # Max individual weight of 50% to force diversification
-        bounds=[(0, 0.5) for _ in range(nbrstocks)],
-        constraints=constraints,
-    )
-    return result.x
-
-
-def CDAR(
-    stcks,
-    prev_weights=None,
-    turnover_penalty=0.0,
-    corr_sp=None,
-    maxcorr_sp=1.0,
-    corr_bond=None,
-    maxcorr_bond=1.0,
-):
-    """
-    Conditional Drawdown at risk (CDAR), minimize average monthly drawdown at 95%
-
-    Parameters:
-    stcks (DataFrame): Dataframe of returns.
-    prev_weights (ndarray): Array of previous weight neccessary for turnover minimization.
-    turnover_penalty (float): Factor on turnover penalty in objective function
-
-    Returns:
-    ndarray: Array of weights.
-    """
-    nbrstocks = len(stcks.transpose())
-
-    # Optimization parameters
-    ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks)) / nbrstocks
-
-    def portfolio_return(weights):
-        return np.dot(stcks.values, weights)
-
-    # Constraint on sum of weights equal one
-    constraints = [{"type": "eq", "fun": lambda x: np.dot(ones.T, x) - 1}]
-    if corr_sp is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_sp) + maxcorr_sp}
-        )
-    if corr_bond is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_bond) + maxcorr_bond}
-        )
-
-    # Objective function
-    def objective(x):
-
-        portfolio_ret = portfolio_return(x)
-        obj_value = cdar(portfolio_ret, 0.05)
-
-        if prev_weights is not None:
-            w0 = prev_weights
-            length_diff = len(x) - len(w0)
-
-            if length_diff > 0:
-                w0 = np.vstack([w0, np.array([[0]] * length_diff)])
-
-            turnover = np.sum(np.abs(x - w0))
-            obj_value += turnover_penalty * turnover
-        return obj_value
-
-    result = minimize(
-        lambda x: objective(x),
-        weight_equal,
-        method="SLSQP",
-        tol=1e-10,
-        # Max individual weight of 50% to force diversification
-        bounds=[(0, 0.5) for _ in range(nbrstocks)],
-        constraints=constraints,
-    )
-    return result.x
-
-
-def Omega_min(
-    stcks,
-    prev_weights=None,
-    turnover_penalty=0.0,
-    corr_sp=None,
-    maxcorr_sp=1.0,
-    corr_bond=None,
-    maxcorr_bond=1.0,
-):
-    """
-    Minimize Omega denumerator (minimize average return under rf)
-
-    Parameters:
-    stcks (DataFrame): Dataframe of returns.
-    prev_weights (ndarray): Array of previous weight neccessary for turnover minimization.
-    turnover_penalty (float): Factor on turnover penalty in objective function
-
-    Returns:
-    ndarray: Array of weights.
-    """
-    nbrstocks = len(stcks.transpose())
-
-    # Optimization parameters
-    ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks)) / nbrstocks
-
-    def portfolio_return(weights):
-        return np.dot(stcks.values, weights)
-
-    # Constraint on sum of weights equal one
-    constraints = [{"type": "eq", "fun": lambda x: np.dot(ones.T, x) - 1}]
-    if corr_sp is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_sp) + maxcorr_sp}
-        )
-    if corr_bond is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_bond) + maxcorr_bond}
-        )
-
-    # Objective function
-    def objective(x):
-
-        portfolio_ret = portfolio_return(x)
-        obj_value = omega_denum(portfolio_ret, rf)
-
-        if prev_weights is not None:
-            w0 = prev_weights
-            length_diff = len(x) - len(w0)
-
-            if length_diff > 0:
-                w0 = np.vstack([w0, np.array([[0]] * length_diff)])
-
-            turnover = np.sum(np.abs(x - w0))
-            obj_value += turnover_penalty * turnover
-        return obj_value
-
-    result = minimize(
-        lambda x: objective(x),
-        weight_equal,
-        method="SLSQP",
-        tol=1e-10,
-        # Max individual weight of 50% to force diversification
-        bounds=[(0, 0.5) for _ in range(nbrstocks)],
-        constraints=constraints,
-    )
-    return result.x
-
-
-###############################################################################
-
-# Optimal portfolios (Maximize return per unit of risk)
-
-
-def MV_risk(
-    stcks,
-    prev_weights=None,
-    turnover_penalty=0.0,
-    corr_sp=None,
-    maxcorr_sp=1.0,
-    corr_bond=None,
-    maxcorr_bond=1.0,
-):
-    """
-    Maximize return over volatility
-
-    Parameters:
-    stcks (DataFrame): Dataframe of returns.
-    prev_weights (ndarray): Array of previous weight neccessary for turnover minimization.
-    turnover_penalty (float): Factor on turnover penalty in objective function
-
-    Returns:
-    ndarray: Array of weights.
-    """
-    nbrstocks = len(stcks.transpose())
-
-    # Optimization parameters
-    ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks)) / nbrstocks
-    covariance = stcks.cov()
-
-    def portfolio_return(weights):
-        return np.dot(stcks.values, weights)
-
-    # Constraint on sum of weights equal one
-    constraints = [{"type": "eq", "fun": lambda x: np.dot(ones.T, x) - 1}]
-    if corr_sp is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_sp) + maxcorr_sp}
-        )
-    if corr_bond is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_bond) + maxcorr_bond}
-        )
-
-    # Objective function
-    def objective(x):
-
-        portfolio_ret = portfolio_return(x)
-        obj_value = -(portfolio_ret[-1] - rf) / ((x.T @ covariance @ x) ** 0.5)
-
-        if prev_weights is not None:
-            w0 = prev_weights
-            length_diff = len(x) - len(w0)
-
-            if length_diff > 0:
-                w0 = np.vstack([w0, np.array([[0]] * length_diff)])
-
-            turnover = np.sum(np.abs(x - w0))
-            obj_value += turnover_penalty * turnover
-        return obj_value
-
-    result = minimize(
-        lambda x: objective(x),
-        weight_equal,
-        method="SLSQP",
-        tol=1e-10,
-        # Max individual weight of 50% to force diversification
-        bounds=[(0, 0.5) for _ in range(nbrstocks)],
-        constraints=constraints,
-    )
-    return result.x
-
-
-def CVAR_risk(
-    stcks,
-    prev_weights=None,
-    turnover_penalty=0.0,
-    corr_sp=None,
-    maxcorr_sp=1.0,
-    corr_bond=None,
-    maxcorr_bond=1.0,
-):
-    """
-    Maximize return over conditional value at risk
-
-    Parameters:
-    stcks (DataFrame): Dataframe of returns.
-    prev_weights (ndarray): Array of previous weight neccessary for turnover minimization.
-    turnover_penalty (float): Factor on turnover penalty in objective function
-
-    Returns:
-    ndarray: Array of weights.
-    """
-    nbrstocks = len(stcks.transpose())
-
-    # Optimization parameters
-    ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks)) / nbrstocks
-
-    def portfolio_return(weights):
-        return np.dot(stcks.values, weights)
-
-    # Constraint on sum of weights equal one
-    constraints = [{"type": "eq", "fun": lambda x: np.dot(ones.T, x) - 1}]
-    if corr_sp is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_sp) + maxcorr_sp}
-        )
-    if corr_bond is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_bond) + maxcorr_bond}
-        )
-
-    # Objective function
-    def objective(x):
-
-        portfolio_ret = portfolio_return(x)
-        cvar_value = cvar(portfolio_ret, alpha=0.05)
-        obj_value = -((portfolio_ret[-1] - rf) / cvar_value)
-
-        if prev_weights is not None:
-            w0 = prev_weights
-            length_diff = len(x) - len(w0)
-
-            if length_diff > 0:
-                w0 = np.vstack([w0, np.array([[0]] * length_diff)])
-
-            turnover = np.sum(np.abs(x - prev_weights))
-            obj_value += turnover_penalty * turnover
-        return obj_value
-
-    result = minimize(
-        lambda x: objective(x),
-        weight_equal,
-        method="SLSQP",
-        tol=1e-10,
-        # Max individual weight of 50% to force diversification
-        bounds=[(0, 0.5) for _ in range(nbrstocks)],
-        constraints=constraints,
-    )
-    return result.x
-
-
-def CDAR_risk(
-    stcks,
-    prev_weights=None,
-    turnover_penalty=0.0,
-    corr_sp=None,
-    maxcorr_sp=1.0,
-    corr_bond=None,
-    maxcorr_bond=1.0,
-):
-    """
-    Maximize return over conditional drawdown at risk
-
-    Parameters:
-    stcks (DataFrame): Dataframe of returns.
-    prev_weights (ndarray): Array of previous weight neccessary for turnover minimization.
-    turnover_penalty (float): Factor on turnover penalty in objective function
-
-    Returns:
-    ndarray: Array of weights.
-    """
-    nbrstocks = len(stcks.transpose())
-
-    # Optimization parameters
-    ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks)) / nbrstocks
-
-    def portfolio_return(weights):
-        return np.dot(stcks.values, weights)
-
-    # Constraint on sum of weights equal one
-    constraints = [{"type": "eq", "fun": lambda x: np.dot(ones.T, x) - 1}]
-    if corr_sp is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_sp) + maxcorr_sp}
-        )
-    if corr_bond is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_bond) + maxcorr_bond}
-        )
-
-    # Objective function
-    def objective(x):
-
-        portfolio_ret = portfolio_return(x)
-        cdar_value = cdar(portfolio_ret, alpha=0.05)
-        obj_value = -((portfolio_ret[-1] - rf) / cdar_value)
-
-        if prev_weights is not None:
-            w0 = prev_weights
-            length_diff = len(x) - len(w0)
-
-            if length_diff > 0:
-                w0 = np.vstack([w0, np.array([[0]] * length_diff)])
-
-            turnover = np.sum(np.abs(x - w0))
-            obj_value += turnover_penalty * turnover
-        return obj_value
-
-    result = minimize(
-        lambda x: objective(x),
-        weight_equal,
-        method="SLSQP",
-        tol=1e-10,
-        # Max individual weight of 50% to force diversification
-        bounds=[(0, 0.5) for _ in range(nbrstocks)],
-        constraints=constraints,
-    )
-    return result.x
-
-
-def Omega_max(
-    stcks,
-    prev_weights=None,
-    turnover_penalty=0.0,
-    corr_sp=None,
-    maxcorr_sp=1.0,
-    corr_bond=None,
-    maxcorr_bond=1.0,
-):
-    """
-    Maximize omega ratio
-
-    Parameters:
-    stcks (DataFrame): Dataframe of returns.
-    prev_weights (ndarray): Array of previous weight neccessary for turnover minimization.
-    turnover_penalty (float): Factor on turnover penalty in objective function
-
-    Returns:
-    ndarray: Array of weights.
-    """
-    nbrstocks = len(stcks.transpose())
-
-    # Optimization parameters
-    ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks)) / nbrstocks
-
-    def portfolio_return(weights):
-        return np.dot(stcks.values, weights)
-
-    # Constraint on sum of weights equal one
-    constraints = [{"type": "eq", "fun": lambda x: np.dot(ones.T, x) - 1}]
-    if corr_sp is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_sp) + maxcorr_sp}
-        )
-    if corr_bond is not None:
-        constraints.append(
-            {"type": "ineq", "fun": lambda x: -np.sum(x * corr_bond) + maxcorr_bond}
-        )
-
-    # Objective function
-    def objective(x):
-
-        portfolio_ret = portfolio_return(x)
-        obj_value = -omega_ratio(portfolio_ret, rf)
-
-        if prev_weights is not None:
-            w0 = prev_weights
-            length_diff = len(x) - len(w0)
-
-            if length_diff > 0:
-                w0 = np.vstack([w0, np.array([[0]] * length_diff)])
-
-            turnover = np.sum(np.abs(x - w0))
-            obj_value += turnover_penalty * turnover
-        return obj_value
-
-    result = minimize(
-        lambda x: objective(x),
-        weight_equal,
-        method="SLSQP",
-        tol=1e-10,
-        # Max individual weight of 50% to force diversification
-        bounds=[(0, 0.5) for _ in range(nbrstocks)],
-        constraints=constraints,
-    )
-    return result.x
 
 
 ###############################################################################
@@ -1475,11 +809,7 @@ def Omega_max(
 ###############################################################################
 
 # Definition of functions:
-import portfolios_functions as pf
-import importlib
 
-
-###  importlib.reload(pf)
 
 
 def portfolio_aum(weight):
@@ -1874,8 +1204,8 @@ def performance_measures(weight, aum, returns, to, syn=False):
     AR = (1 + returns.mean()) ** (12) - 1
     SD = returns.std() * np.sqrt(12)
     MDD = max_drawdown(aum)
-    CVaR = cvar(returns, 0.01)
-    CDaR = cdar(returns, 0.01)
+    CVaR = pf.cvar(returns, 0.01)
+    CDaR = pf.cdar(returns, 0.01)
     SR = (AR - float(Riskfree.mean())) / SD
     M_squared = float(Riskfree.mean()) + SR * bench.iloc[rw:].std() * np.sqrt(12)
     Calmar = (AR - float(Riskfree.mean())) / MDD
@@ -2010,7 +1340,7 @@ weight_MVP = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="MVP optimization"):
     weight_MVP[i] = pd.DataFrame(
-        data=MVP(rw_returns[i]),
+        data=pf.MVP(rw_returns[i]),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -2049,7 +1379,7 @@ weight_MSR = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="MSR optimization"):
     weight_MSR[i] = pd.DataFrame(
-        data=MV_risk(rw_returns[i]),
+        data=pf.MV_risk(rw_returns[i]),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -2173,7 +1503,7 @@ weight_CVAR = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="CVAR optimization"):
     weight_CVAR[i] = pd.DataFrame(
-        data=CVAR(rw_returns[i]),
+        data=pf.CVAR(rw_returns[i]),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -2210,7 +1540,7 @@ weight_CVAR_risk = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="CVAR risk optimization"):
     weight_CVAR_risk[i] = pd.DataFrame(
-        data=CVAR_risk(rw_returns[i]),
+        data=pf.CVAR_risk(rw_returns[i]),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -2258,7 +1588,7 @@ weight_CDAR = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="CDAR optimization"):
     weight_CDAR[i] = pd.DataFrame(
-        data=CDAR(rw_returns[i]),
+        data=pf.CDAR(rw_returns[i]),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -2295,7 +1625,7 @@ weight_CDAR_risk = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="CDAR risk optimization"):
     weight_CDAR_risk[i] = pd.DataFrame(
-        data=CDAR_risk(rw_returns[i]),
+        data=pf.CDAR_risk(rw_returns[i]),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -2343,7 +1673,7 @@ weight_Omegamin = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="Omegamin optimization"):
     weight_Omegamin[i] = pd.DataFrame(
-        data=Omega_min(rw_returns[i]),
+        data=pf.Omega_min(rw_returns[i]),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -2384,7 +1714,7 @@ weight_Omegamax = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="Omegamax optimization"):
     weight_Omegamax[i] = pd.DataFrame(
-        data=Omega_max(rw_returns[i]),
+        data=pf.Omega_max(rw_returns[i]),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -2560,7 +1890,7 @@ weight_syn_CVAR = [0] * rw_corr_number
 
 for i in tqdm(range(rw_corr_number), desc="syn CVAR optimization"):
     weight_syn_CVAR[i] = pd.DataFrame(
-        data=CVAR(rw_corr_returns[i]),
+        data=pf.CVAR(rw_corr_returns[i]),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
         index=rw_corr_returns[i].columns,
     )
@@ -2601,7 +1931,7 @@ weight_syn_CVAR_risk = [0] * rw_corr_number
 
 for i in tqdm(range(rw_corr_number), desc="syn CVAR risk optimization"):
     weight_syn_CVAR_risk[i] = pd.DataFrame(
-        data=CVAR_risk(rw_corr_returns[i]),
+        data=pf.CVAR_risk(rw_corr_returns[i]),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
         index=rw_corr_returns[i].columns,
     )
@@ -2657,7 +1987,7 @@ weight_syn_CDAR = [0] * rw_corr_number
 
 for i in tqdm(range(rw_corr_number), desc="syn CDAR optimization"):
     weight_syn_CDAR[i] = pd.DataFrame(
-        data=CDAR(rw_corr_returns[i]),
+        data=pf.CDAR(rw_corr_returns[i]),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
         index=rw_corr_returns[i].columns,
     )
@@ -2698,7 +2028,7 @@ weight_syn_CDAR_risk = [0] * rw_corr_number
 
 for i in tqdm(range(rw_corr_number), desc="syn CDAR risk optimization"):
     weight_syn_CDAR_risk[i] = pd.DataFrame(
-        data=CDAR_risk(rw_corr_returns[i]),
+        data=pf.CDAR_risk(rw_corr_returns[i]),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
         index=rw_corr_returns[i].columns,
     )
@@ -2752,7 +2082,7 @@ weight_syn_Omegamin = [0] * rw_corr_number
 
 for i in tqdm(range(rw_corr_number), desc="syn Omegamin optimization"):
     weight_syn_Omegamin[i] = pd.DataFrame(
-        data=Omega_min(rw_corr_returns[i]),
+        data=pf.Omega_min(rw_corr_returns[i]),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
         index=rw_corr_returns[i].columns,
     )
@@ -2804,7 +2134,7 @@ weight_syn_Omegamax = [0] * rw_corr_number
 
 for i in tqdm(range(rw_corr_number), desc="syn Omegamax optimization"):
     weight_syn_Omegamax[i] = pd.DataFrame(
-        data=Omega_max(rw_corr_returns[i]),
+        data=pf.Omega_max(rw_corr_returns[i]),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
         index=rw_corr_returns[i].columns,
     )
@@ -3002,7 +2332,7 @@ weight_CVAR_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
 
 for i in tqdm(range(rw_number), desc="CVAR mint"):
     weight_CVAR_mint[i] = pd.DataFrame(
-        data=CVAR(rw_returns[i], np.array(weight_CVAR_mint[i - 1]), 0.0005),
+        data=pf.CVAR(rw_returns[i], np.array(weight_CVAR_mint[i - 1]), 0.0005),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -3052,7 +2382,7 @@ turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="CVAR risk mint optimization"):
     weight_CVAR_risk_mint[i] = pd.DataFrame(
-        data=CVAR_risk(
+        data=pf.CVAR_risk(
             rw_returns[i], np.array(weight_CVAR_risk_mint[i - 1]), turnover_penalty
         ),  # 0.07
         columns=Returns.iloc[i + rw : i + rw + 1].index,
@@ -3132,7 +2462,7 @@ weight_CDAR_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
 
 for i in tqdm(range(rw_number), desc="CDAR mint optimization"):
     weight_CDAR_mint[i] = pd.DataFrame(
-        data=CDAR(rw_returns[i], np.array(weight_CDAR_mint[i - 1]), 0.001),
+        data=pf.CDAR(rw_returns[i], np.array(weight_CDAR_mint[i - 1]), 0.001),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -3182,7 +2512,7 @@ turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="CDAR risk mint optimization"):
     weight_CDAR_risk_mint[i] = pd.DataFrame(
-        data=CDAR_risk(
+        data=pf.CDAR_risk(
             rw_returns[i], np.array(weight_CDAR_risk_mint[i - 1]), turnover_penalty
         ),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
@@ -3263,7 +2593,7 @@ weight_Omegamin_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
 
 for i in tqdm(range(rw_number), desc="Omegamin mint optimization"):
     weight_Omegamin_mint[i] = pd.DataFrame(
-        data=Omega_min(rw_returns[i], np.array(weight_Omegamin_mint[i - 1]), 0.0002),
+        data=pf.Omega_min(rw_returns[i], np.array(weight_Omegamin_mint[i - 1]), 0.0002),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -3321,7 +2651,7 @@ turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="Omegamax mint optimization"):
     weight_Omegamax_mint[i] = pd.DataFrame(
-        data=Omega_max(
+        data=pf.Omega_max(
             rw_returns[i], np.array(weight_Omegamax_mint[i - 1]), turnover_penalty
         ),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
@@ -3541,7 +2871,7 @@ weight_syn_CVAR_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
 
 for i in tqdm(range(rw_corr_number), desc="syn CVAR mint optimization"):
     weight_syn_CVAR_mint[i] = pd.DataFrame(
-        data=CVAR(rw_corr_returns[i], np.array(weight_syn_CVAR_mint[i - 1]), 0.0005),
+        data=pf.CVAR(rw_corr_returns[i], np.array(weight_syn_CVAR_mint[i - 1]), 0.0005),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
         index=rw_corr_returns[i].columns,
     )
@@ -3600,7 +2930,7 @@ w0 = None
 for i in tqdm(range(rw_corr_number), desc="syn CVAR risk mint optimization"):
 
     weight_syn_CVAR_risk_mint[i] = pd.DataFrame(
-        data=CVAR_risk(
+        data=pf.CVAR_risk(
             rw_corr_returns[i],
             np.array(weight_syn_CVAR_risk_mint[i - 1]),
             turnover_penalty,
@@ -3685,7 +3015,7 @@ weight_syn_CDAR_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
 
 for i in tqdm(range(rw_corr_number), desc="syn CDAR mint optimization"):
     weight_syn_CDAR_mint[i] = pd.DataFrame(
-        data=CDAR(rw_corr_returns[i], np.array(weight_syn_CDAR_mint[i - 1]), 0.001),
+        data=pf.CDAR(rw_corr_returns[i], np.array(weight_syn_CDAR_mint[i - 1]), 0.001),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
         index=rw_corr_returns[i].columns,
     )
@@ -3744,7 +3074,7 @@ turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_corr_number), desc="syn CDAR risk mint optimization"):
     weight_syn_CDAR_risk_mint[i] = pd.DataFrame(
-        data=CDAR_risk(
+        data=pf.CDAR_risk(
             rw_corr_returns[i],
             np.array(weight_syn_CDAR_risk_mint[i - 1]),
             turnover_penalty,
@@ -3830,7 +3160,7 @@ weight_syn_Omegamin_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns]
 
 for i in tqdm(range(rw_corr_number), desc="syn Omegamin mint optimization"):
     weight_syn_Omegamin_mint[i] = pd.DataFrame(
-        data=Omega_min(
+        data=pf.Omega_min(
             rw_corr_returns[i], np.array(weight_syn_Omegamin_mint[i - 1]), 0.0002
         ),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
@@ -3892,7 +3222,7 @@ turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_corr_number), desc="syn Omegamax mint optimization"):
     weight_syn_Omegamax_mint[i] = pd.DataFrame(
-        data=Omega_max(
+        data=pf.Omega_max(
             rw_corr_returns[i],
             np.array(weight_syn_Omegamax_mint[i - 1]),
             turnover_penalty,
@@ -4126,7 +3456,7 @@ weight_CVAR_cons = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="CVAR optimization under constraint"):
     weight_CVAR_cons[i] = pd.DataFrame(
-        data=CVAR(
+        data=pf.CVAR(
             rw_returns[i],
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -4187,7 +3517,7 @@ weight_CVAR_risk_cons = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="CVAR risk optimization under constraint"):
     weight_CVAR_risk_cons[i] = pd.DataFrame(
-        data=CVAR_risk(
+        data=pf.CVAR_risk(
             rw_returns[i],
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -4254,7 +3584,7 @@ weight_CDAR_cons = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="CDAR optimization under constraint"):
     weight_CDAR_cons[i] = pd.DataFrame(
-        data=CDAR(
+        data=pf.CDAR(
             rw_returns[i],
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -4315,7 +3645,7 @@ weight_CDAR_risk_cons = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="CDAR risk optimization under constraint"):
     weight_CDAR_risk_cons[i] = pd.DataFrame(
-        data=CDAR_risk(
+        data=pf.CDAR_risk(
             rw_returns[i],
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -4383,7 +3713,7 @@ weight_Omegamin_cons = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="Omegamin optimization under constraint"):
     weight_Omegamin_cons[i] = pd.DataFrame(
-        data=Omega_min(
+        data=pf.Omega_min(
             rw_returns[i],
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -4448,7 +3778,7 @@ weight_Omegamax_cons = [0] * rw_number
 
 for i in tqdm(range(rw_number), desc="Omegamax optimization under constraint"):
     weight_Omegamax_cons[i] = pd.DataFrame(
-        data=Omega_max(
+        data=pf.Omega_max(
             rw_returns[i],
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -4652,7 +3982,7 @@ weight_syn_CVAR_cons = [0] * rw_corr_number
 
 for i in tqdm(range(rw_corr_number), desc="syn CVAR optimization under constraint"):
     weight_syn_CVAR_cons[i] = pd.DataFrame(
-        data=CVAR(
+        data=pf.CVAR(
             rw_corr_returns[i],
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -4719,7 +4049,7 @@ for i in tqdm(
     range(rw_corr_number), desc="syn CVAR risk optimization under constraint"
 ):
     weight_syn_CVAR_risk_cons[i] = pd.DataFrame(
-        data=CVAR_risk(
+        data=pf.CVAR_risk(
             rw_corr_returns[i],
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -4789,7 +4119,7 @@ weight_syn_CDAR_cons = [0] * rw_corr_number
 
 for i in tqdm(range(rw_corr_number), desc="syn CDAR optimization under constraint"):
     weight_syn_CDAR_cons[i] = pd.DataFrame(
-        data=CDAR(
+        data=pf.CDAR(
             rw_corr_returns[i],
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -4856,7 +4186,7 @@ for i in tqdm(
     range(rw_corr_number), desc="syn CDAR risk optimization under constraint"
 ):
     weight_syn_CDAR_risk_cons[i] = pd.DataFrame(
-        data=CDAR_risk(
+        data=pf.CDAR_risk(
             rw_corr_returns[i],
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -4924,7 +4254,7 @@ weight_syn_Omegamin_cons = [0] * rw_corr_number
 
 for i in tqdm(range(rw_corr_number), desc="syn Omegamin optimization under constraint"):
     weight_syn_Omegamin_cons[i] = pd.DataFrame(
-        data=Omega_min(
+        data=pf.Omega_min(
             rw_corr_returns[i],
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -4990,7 +4320,7 @@ weight_syn_Omegamax_cons = [0] * rw_corr_number
 
 for i in tqdm(range(rw_corr_number), desc="syn Omegamax optimization under constraint"):
     weight_syn_Omegamax_cons[i] = pd.DataFrame(
-        data=Omega_max(
+        data=pf.Omega_max(
             rw_corr_returns[i],
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -5204,7 +4534,7 @@ weight_CVAR_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
 
 for i in tqdm(range(rw_number), desc="CVAR mint under constraint"):
     weight_CVAR_mint_cons[i] = pd.DataFrame(
-        data=CVAR(
+        data=pf.CVAR(
             rw_returns[i],
             np.array(weight_CVAR_mint_cons[i - 1]),
             0.0005,
@@ -5277,7 +4607,7 @@ turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="CVAR risk mint optimization under constraint"):
     weight_CVAR_risk_mint_cons[i] = pd.DataFrame(
-        data=CVAR_risk(
+        data=pf.CVAR_risk(
             rw_returns[i],
             np.array(weight_CVAR_risk_mint_cons[i - 1]),
             turnover_penalty,
@@ -5373,7 +4703,7 @@ weight_CDAR_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
 
 for i in tqdm(range(rw_number), desc="CDAR mint optimization under constraint"):
     weight_CDAR_mint_cons[i] = pd.DataFrame(
-        data=CDAR(
+        data=pf.CDAR(
             rw_returns[i],
             np.array(weight_CDAR_mint_cons[i - 1]),
             0.001,
@@ -5446,7 +4776,7 @@ turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="CDAR risk mint optimization under constraint"):
     weight_CDAR_risk_mint_cons[i] = pd.DataFrame(
-        data=CDAR_risk(
+        data=pf.CDAR_risk(
             rw_returns[i],
             np.array(weight_CDAR_risk_mint_cons[i - 1]),
             turnover_penalty,
@@ -5542,7 +4872,7 @@ weight_Omegamin_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns
 
 for i in tqdm(range(rw_number), desc="Omegamin mint optimization under constraint"):
     weight_Omegamin_mint_cons[i] = pd.DataFrame(
-        data=Omega_min(
+        data=pf.Omega_min(
             rw_returns[i],
             np.array(weight_Omegamin_mint_cons[i - 1]),
             0.0002,
@@ -5615,7 +4945,7 @@ turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="Omegamax mint optimization under constraint"):
     weight_Omegamax_mint_cons[i] = pd.DataFrame(
-        data=Omega_max(
+        data=pf.Omega_max(
             rw_returns[i],
             np.array(weight_Omegamax_mint_cons[i - 1]),
             turnover_penalty,
@@ -5851,7 +5181,7 @@ for i in tqdm(
     range(rw_corr_number), desc="syn CVAR mint optimization under constraint"
 ):
     weight_syn_CVAR_mint_cons[i] = pd.DataFrame(
-        data=CVAR(
+        data=pf.CVAR(
             rw_corr_returns[i],
             np.array(weight_syn_CVAR_mint_cons[i - 1]),
             0.0005,
@@ -5928,7 +5258,7 @@ for i in tqdm(
     range(rw_corr_number), desc="syn CVAR risk mint optimization under constraint"
 ):
     weight_syn_CVAR_risk_mint_cons[i] = pd.DataFrame(
-        data=CVAR_risk(
+        data=pf.CVAR_risk(
             rw_corr_returns[i],
             np.array(weight_syn_CVAR_risk_mint_cons[i - 1]),
             turnover_penalty,
@@ -6026,7 +5356,7 @@ for i in tqdm(
     range(rw_corr_number), desc="syn CDAR mint optimization under constraint"
 ):
     weight_syn_CDAR_mint_cons[i] = pd.DataFrame(
-        data=CDAR(
+        data=pf.CDAR(
             rw_corr_returns[i],
             np.array(weight_syn_CDAR_mint_cons[i - 1]),
             0.001,
@@ -6101,7 +5431,7 @@ for i in tqdm(
     range(rw_corr_number), desc="syn CDAR risk mint optimization under constraint"
 ):
     weight_syn_CDAR_risk_mint_cons[i] = pd.DataFrame(
-        data=CDAR_risk(
+        data=pf.CDAR_risk(
             rw_corr_returns[i],
             np.array(weight_syn_CDAR_risk_mint_cons[i - 1]),
             turnover_penalty,
@@ -6201,7 +5531,7 @@ for i in tqdm(
     range(rw_corr_number), desc="syn Omegamin mint optimization under constraint"
 ):
     weight_syn_Omegamin_mint_cons[i] = pd.DataFrame(
-        data=Omega_min(
+        data=pf.Omega_min(
             rw_corr_returns[i],
             np.array(weight_syn_Omegamin_mint_cons[i - 1]),
             0.0002,
@@ -6276,7 +5606,7 @@ for i in tqdm(
     range(rw_corr_number), desc="syn Omegamax mint optimization under constraint"
 ):
     weight_syn_Omegamax_mint_cons[i] = pd.DataFrame(
-        data=Omega_max(
+        data=pf.Omega_max(
             rw_corr_returns[i],
             np.array(weight_syn_Omegamax_mint_cons[i - 1]),
             5,
