@@ -933,7 +933,7 @@ def MVP(
 
     # Optimization parameters
     ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks, 1)) / nbrstocks
+    weight_equal = np.ones(nbrstocks) / nbrstocks
     covariance = stcks.cov()
 
     # Constraint on sum of weights equal one
@@ -999,7 +999,7 @@ def CVAR(
 
     # Optimization parameters
     ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks, 1)) / nbrstocks
+    weight_equal = np.ones(nbrstocks) / nbrstocks
 
     def portfolio_return(weights):
         return np.dot(stcks.values, weights)
@@ -1068,7 +1068,7 @@ def CDAR(
 
     # Optimization parameters
     ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks, 1)) / nbrstocks
+    weight_equal = np.ones((nbrstocks)) / nbrstocks
 
     def portfolio_return(weights):
         return np.dot(stcks.values, weights)
@@ -1137,7 +1137,7 @@ def Omega_min(
 
     # Optimization parameters
     ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks, 1)) / nbrstocks
+    weight_equal = np.ones((nbrstocks)) / nbrstocks
 
     def portfolio_return(weights):
         return np.dot(stcks.values, weights)
@@ -1211,7 +1211,7 @@ def MV_risk(
 
     # Optimization parameters
     ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks, 1)) / nbrstocks
+    weight_equal = np.ones((nbrstocks)) / nbrstocks
     covariance = stcks.cov()
 
     def portfolio_return(weights):
@@ -1281,7 +1281,7 @@ def CVAR_risk(
 
     # Optimization parameters
     ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks, 1)) / nbrstocks
+    weight_equal = np.ones((nbrstocks)) / nbrstocks
 
     def portfolio_return(weights):
         return np.dot(stcks.values, weights)
@@ -1351,7 +1351,7 @@ def CDAR_risk(
 
     # Optimization parameters
     ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks, 1)) / nbrstocks
+    weight_equal = np.ones((nbrstocks)) / nbrstocks
 
     def portfolio_return(weights):
         return np.dot(stcks.values, weights)
@@ -1421,7 +1421,7 @@ def Omega_max(
 
     # Optimization parameters
     ones = np.ones((nbrstocks, 1))
-    weight_equal = np.ones((nbrstocks, 1)) / nbrstocks
+    weight_equal = np.ones((nbrstocks)) / nbrstocks
 
     def portfolio_return(weights):
         return np.dot(stcks.values, weights)
@@ -1475,6 +1475,11 @@ def Omega_max(
 ###############################################################################
 
 # Definition of functions:
+import portfolios_functions as pf
+import importlib
+
+
+###  importlib.reload(pf)
 
 
 def portfolio_aum(weight):
@@ -1692,7 +1697,7 @@ def turnover_plot(to_mint, to):
     plt.ylim(0, 2)
     plt.ylabel("Turnover")
     plt.xlabel("Time")
-    plt.savefig("Code/Final/Turnover/" + var_name + "_costs.png")
+    plt.savefig("Turnover/" + var_name + "_costs.png")
 
 
 def correlation_plot(corrsp_cons, corrbond_cons, corrsp, corrbond):
@@ -1725,7 +1730,7 @@ def correlation_plot(corrsp_cons, corrbond_cons, corrsp, corrbond):
     plt.xlabel("Time")
     plt.ylabel("Correlation")
     plt.ylim(-1, 1)
-    plt.savefig("Code/Final/Correlation/" + var_name + "_correlations.png")
+    plt.savefig("Correlation/" + var_name + "_correlations.png")
 
 
 def stackplts(weights):
@@ -1753,7 +1758,7 @@ def stackplts(weights):
     ax.set_xlabel("Time")
     ax.set_ylim(0, 1)
     ax.set_title("Weight allocation of the portfolio over time")
-    fig.savefig("Code/Final/Stackplots/" + var_name + ".png")
+    fig.savefig("Stackplots/" + var_name + ".png")
 
 
 ###############################################################################
@@ -1765,13 +1770,17 @@ def stackplts(weights):
 ###############################################################################
 
 Riskfree = pd.read_excel(
-    "Data/Benchmark.xlsx", sheet_name="Tbill 10y", index_col=0, parse_dates=True
+    "Data/Benchmark.xlsx",
+    sheet_name="Tbill 10y",
+    index_col=0,
+    parse_dates=True,
+    date_format="%Y-%m-%d",
 )
 
 Riskfree.drop(index=Riskfree[0:10].index, inplace=True)
 Riskfree.columns = ["DGS10"]
 Riskfree = Riskfree.astype(float)
-Riskfree.index = pd.to_datetime(Riskfree.index, format="%Y-%m-%d")
+Riskfree.index = pd.to_datetime(Riskfree.index, format="%Y-%m-%d %H:%M:%S")
 Riskfree = Riskfree / 100
 
 # we get the average monthly risk free rate from the average annualized 10y T-bill rate
@@ -2085,7 +2094,7 @@ t_bench = pd.concat(
     ignore_index=False,
 )
 with pd.ExcelWriter(
-    "Code/Final/Performance Measures.xlsx", engine="xlsxwriter"
+    "Performance Measures.xlsx"
 ) as writer:
     t_bench.to_excel(writer, sheet_name="Benchmark")
 
@@ -2117,7 +2126,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=4,
 )
-plt.savefig("Code/Final/Benchmark.png")
+plt.savefig("Benchmark.png")
 
 
 ###############################################################################
@@ -2453,7 +2462,7 @@ t_historical_P1.columns = [
 ]
 
 with pd.ExcelWriter(
-    "Code/Final/Performance Measures.xlsx", engine="xlsxwriter"
+    "Performance Measures.xlsx"
 ) as writer:
     t_historical_P1.to_excel(writer, sheet_name="P1 - Historical")
 
@@ -2494,7 +2503,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/historical_P1.png")
+plt.savefig("historical_P1.png")
 
 
 # Without costs:
@@ -2533,7 +2542,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/historical_P1.png")
+plt.savefig("historical_P1.png")
 
 
 ###############################################################################
@@ -2883,7 +2892,7 @@ t_syn_P1.columns = [
 ]
 
 with pd.ExcelWriter(
-    "Code/Final/Performance Measures.xlsx", engine="xlsxwriter"
+    "Performance Measures.xlsx"
 ) as writer:
     t_syn_P1.to_excel(writer, sheet_name="P1 - Synthetic")
 
@@ -2924,7 +2933,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/synthetic_P1.png")
+plt.savefig("synthetic_P1.png")
 
 
 # Without costs:
@@ -2963,7 +2972,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/synthetic_P1.png")
+plt.savefig("synthetic_P1.png")
 
 
 ###############################################################################
@@ -3429,7 +3438,7 @@ t_historical_P2.columns = [
 ]
 
 with pd.ExcelWriter(
-    "Code/Final/Performance Measures.xlsx", engine="xlsxwriter"
+    "Performance Measures.xlsx"
 ) as writer:
     t_historical_P2.to_excel(writer, sheet_name="P2 - Historical")
 
@@ -3472,7 +3481,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/historical_P2.png")
+plt.savefig("historical_P2.png")
 
 
 # Without costs:
@@ -3513,7 +3522,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/historical_P2.png")
+plt.savefig("historical_P2.png")
 
 
 ###############################################################################
@@ -4002,7 +4011,7 @@ t_syn_P2.columns = [
 ]
 
 with pd.ExcelWriter(
-    "Code/Final/Performance Measures.xlsx", engine="xlsxwriter"
+    "Performance Measures.xlsx"
 ) as writer:
     t_syn_P2.to_excel(writer, sheet_name="P2 - Synthetic")
 
@@ -4045,7 +4054,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/synthetic_P2.png")
+plt.savefig("synthetic_P2.png")
 
 
 # Without costs:
@@ -4086,7 +4095,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/synthetic_P2.png")
+plt.savefig("synthetic_P2.png")
 
 
 ###############################################################################
@@ -4541,7 +4550,7 @@ t_historical_P3.columns = [
 ]
 
 with pd.ExcelWriter(
-    "Code/Final/Performance Measures.xlsx", engine="xlsxwriter"
+    "Performance Measures.xlsx"
 ) as writer:
     t_historical_P3.to_excel(writer, sheet_name="P3 - Historical")
 
@@ -4584,7 +4593,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/historical_P3.png")
+plt.savefig("historical_P3.png")
 
 
 # Without costs:
@@ -4625,7 +4634,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/historical_P3.png")
+plt.savefig("historical_P3.png")
 
 
 ###############################################################################
@@ -5085,7 +5094,7 @@ t_syn_P3.columns = [
 ]
 
 with pd.ExcelWriter(
-    "Code/Final/Performance Measures.xlsx", engine="xlsxwriter"
+    "Performance Measures.xlsx"
 ) as writer:
     t_syn_P3.to_excel(writer, sheet_name="P3 - Synthetic")
 
@@ -5128,7 +5137,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/synthetic_P3.png")
+plt.savefig("synthetic_P3.png")
 
 
 # Without costs:
@@ -5168,7 +5177,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/synthetic_P3.png")
+plt.savefig("synthetic_P3.png")
 
 ###############################################################################
 ###############################################################################
@@ -5737,7 +5746,7 @@ t_historical_P4.columns = [
 ]
 
 with pd.ExcelWriter(
-    "Code/Final/Performance Measures.xlsx", engine="xlsxwriter"
+    "Performance Measures.xlsx"
 ) as writer:
     t_historical_P4.to_excel(writer, sheet_name="P4 - Historical")
 
@@ -5780,7 +5789,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/historical_P4.png")
+plt.savefig("historical_P4.png")
 
 
 # Without costs:
@@ -5821,7 +5830,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/historical_P4.png")
+plt.savefig("historical_P4.png")
 
 
 ###############################################################################
@@ -6397,7 +6406,7 @@ t_syn_P4.columns = [
 ]
 
 with pd.ExcelWriter(
-    "Code/Final/Performance Measures.xlsx", engine="xlsxwriter"
+    "Performance Measures.xlsx"
 ) as writer:
     t_syn_P4.to_excel(writer, sheet_name="P4 - Synthetic")
 
@@ -6440,7 +6449,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/synthetic_P4.png")
+plt.savefig("synthetic_P4.png")
 
 
 # Without costs:
@@ -6481,7 +6490,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Code/Final/synthetic_P4.png")
+plt.savefig("synthetic_P4.png")
 
 ###############################################################################
 
@@ -6562,7 +6571,7 @@ t_optimal = pd.concat(
 )
 
 
-with pd.ExcelWriter("Code/Final/Performance Measures.xlsx") as writer:
+with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_minrisk.to_excel(writer, sheet_name="Conservative")
     t_optimal.to_excel(writer, sheet_name="Aggressive")
 del writer
