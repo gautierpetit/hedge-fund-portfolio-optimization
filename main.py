@@ -32,9 +32,9 @@ from sklearn.linear_model import LinearRegression
 ###############################################################################
 
 
-Price = pd.read_excel("Data/HFRI_full.xlsx", index_col=0, parse_dates=True)
+Price = pd.read_excel("Data/HFRI_full.xlsx", index_col=0, parse_dates=True, date_format= "%b-%y")
 
-Benchmark = pd.read_excel("Data/Benchmark.xlsx", index_col=0, parse_dates=True)
+Benchmark = pd.read_excel("Data/Benchmark.xlsx", index_col=0, parse_dates=True, date_format= "%m/%d/%Y")
 
 
 Price_index = [
@@ -66,14 +66,14 @@ Bench_index = [
 
 Price.columns = Price_index
 Price.drop(index=Price[:3].index, inplace=True)
-Price.index = pd.to_datetime(Price.index)
+Price.index = pd.to_datetime(Price.index, format="%Y-%m-%d %H:%M:%S")
 Price = Price.astype(float)
 
 
-Benchmark.drop(index="NaT", inplace=True)
+Benchmark.drop(index=Benchmark[:1].index, inplace=True)
 Benchmark.columns = Bench_index
 Benchmark = Benchmark.astype(float)
-Benchmark.index = pd.to_datetime(Benchmark.index, format="%b %Y")
+Benchmark.index = pd.to_datetime(Benchmark.index, format="%Y-%m-%d %H:%M:%S")
 Benchmark = 100 * Benchmark / Benchmark.iloc[0]
 Benchmark.drop(columns=["S&P US AGGREGATE BOND", "S&P GSCI Commodity"], inplace=True)
 
