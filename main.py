@@ -32,9 +32,13 @@ from sklearn.linear_model import LinearRegression
 ###############################################################################
 
 
-Price = pd.read_excel("Data/HFRI_full.xlsx", index_col=0, parse_dates=True, date_format= "%b-%y")
+Price = pd.read_excel(
+    "Data/HFRI_full.xlsx", index_col=0, parse_dates=True, date_format="%b-%y"
+)
 
-Benchmark = pd.read_excel("Data/Benchmark.xlsx", index_col=0, parse_dates=True, date_format= "%m/%d/%Y")
+Benchmark = pd.read_excel(
+    "Data/Benchmark.xlsx", index_col=0, parse_dates=True, date_format="%m/%d/%Y"
+)
 
 
 Price_index = [
@@ -262,7 +266,9 @@ effect up to the specified lag. If the p-value is below a chosen significance
 level (e.g., 0.05), it suggests evidence of ARCH effects in the data.
 """
 
-ARCH_test = pd.DataFrame(data=0, index=Returns.columns, columns=["ARCH", "p value", "Result" ], dtype= float)
+ARCH_test = pd.DataFrame(
+    data=0, index=Returns.columns, columns=["ARCH", "p value", "Result"], dtype=float
+)
 
 for x in Returns.columns:
     # Create an ARCH(4) model
@@ -526,8 +532,9 @@ semipara_std_residuals = pd.DataFrame(
 
 # Replace tails with parametrically estimated ones
 for col in Returns.columns:
-    semipara_std_residuals[col].loc[lower_returns[col].index] = lower_returns[col]
-    semipara_std_residuals[col].loc[upper_returns[col].index] = upper_returns[col]
+
+    semipara_std_residuals.loc[lower_returns[col].index, col] = lower_returns[col]
+    semipara_std_residuals.loc[upper_returns[col].index, col] = upper_returns[col]
 
     """
     sns_plot = plt.figure(figsize=(16, 9))
@@ -580,8 +587,8 @@ for col in Returns.columns:
 # Combine synthetic tails and smoothed center
 
 for col in Returns.columns:
-    semipara_std_residuals[col].loc[smoothed_returns[col].index] = smoothed_returns[col]
 
+    semipara_std_residuals.loc[smoothed_returns[col].index, col] = smoothed_returns[col]
     # Plot residuals before and after semi-parametric approach
     """
     sns_plot = plt.figure(figsize=(16, 9))
@@ -614,7 +621,7 @@ nu = 15  # Degrees of freedom
 t_dist = StudentTCopula(
     # Check that correlation matrix is positive semi definite
     # np.linalg.eigvals(semipara_std_residuals.corr())
-    corr=semipara_std_residuals.corr(),
+    corr=semipara_std_residuals[25:].corr(),
     df=nu,
 )
 
