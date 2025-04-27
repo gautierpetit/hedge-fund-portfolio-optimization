@@ -799,7 +799,6 @@ for i in range(rw_corr_number):
 del i
 
 
-
 ###############################################################################
 
 
@@ -811,18 +810,26 @@ del i
 # Definition of functions:
 
 
-
 def portfolio_aum(weight):
     """
     Computes portfolio value based on Returns Dataframe
     """
-    aum = [100] * (len(weight) + 1)
 
-    for i in range(len(weight)):
-        aum[i + 1] = (
-            (1 + weight[i].transpose() @ Returns.iloc[rw + i][rw_returns[i].columns])
-            * aum[i]
-        )[0]
+    aum = pd.Series(
+        data=[100] * (len(weight) + 1),
+        index=Returns.iloc[rw - 1 :].index,
+        name="AUM",
+        dtype=float,
+    )
+
+    for i, w in enumerate(weight):
+
+        columns_idx = Returns.columns.get_indexer(rw_returns[i].columns)
+
+        returns_row = Returns.iloc[rw + i, columns_idx]
+
+        aum.iloc[i + 1] = (1 + w.T @ returns_row) * aum.iloc[i]
+
     return aum
 
 
@@ -830,12 +837,21 @@ def portfolio_return(weight):
     """
     Computes portfolio returns based on Returns Dataframe
     """
-    returns = [0] * (len(weight) + 1)
 
-    for i in range(len(weight)):
-        returns[i + 1] = (
-            weight[i].transpose() @ Returns.iloc[rw + i][rw_returns[i].columns]
-        )[0]
+    returns = pd.Series(
+        data=[0] * (len(weight) + 1),
+        index=Returns.iloc[rw - 1 :].index,
+        name="Return",
+        dtype=float,
+    )
+
+    for i, w in enumerate(weight):
+
+        columns_idx = Returns.columns.get_indexer(rw_returns[i].columns)
+
+        returns_row = Returns.iloc[rw + i, columns_idx]
+
+        returns.iloc[i + 1] = w.T @ returns_row
 
     return returns
 
@@ -844,66 +860,113 @@ def turnover(weight):
     """
     Computes portfolio turnover with absolute change in weights
     """
-    to = [0] * len(weight)
+    to = pd.Series(
+        data=[0] * len(weight),
+        index=Returns.iloc[rw:].index,
+        name="Turnover",
+        dtype=float,
+    )
 
     for i in range(len(weight) - 1):
+
+        columns_idx = Returns.columns.get_indexer(rw_returns[i].columns)
+
+        returns_row = Returns.iloc[rw + i, columns_idx]
+
         w1 = weight[i + 1].squeeze().values
-        w0 = (
-            weight[i].squeeze() * (1 + Returns.iloc[rw + i][rw_returns[i].columns])
-        ).values
+        w0 = (weight[i].squeeze() * (1 + returns_row)).values
 
         length_diff = len(w1) - len(w0)
 
         if length_diff > 0:
             w0 = np.pad(w0, (0, length_diff), mode="constant")
 
-        to[i + 1] = abs(w1 - w0).sum()
+        to.iloc[i + 1] = abs(w1 - w0).sum()
 
     return to
 
 
 def portfolio_aum_tc(weight, to, tc):
     """
-    Computes portfolio value with costs of trading based on Returns Dataframe
+    Computes portfolio value with trading costs based on Returns Dataframe
     """
-    aum_tc = [100] * (len(weight) + 1)
 
-    for i in range(len(weight)):
-        aum_tc[i + 1] = (
-            (
-                1
-                + (weight[i].transpose() @ Returns.iloc[rw + i][rw_returns[i].columns])
-                - to[i] * tc
-            )
-            * aum_tc[i]
-        )[0]
+    aum_tc = pd.Series(
+        data=[100] * (len(weight) + 1),
+        index=Returns.iloc[rw - 1 :].index,
+        name="AUM",
+        dtype=float,
+    )
+
+    for i, w in enumerate(weight):
+
+        columns_idx = Returns.columns.get_indexer(rw_returns[i].columns)
+
+        returns_row = Returns.iloc[rw + i, columns_idx]
+
+        net_return = (w.T @ returns_row) - to.iloc[i] * tc
+
+        aum_tc.iloc[i + 1] = (1 + net_return) * aum_tc.iloc[i]
+
     return aum_tc
 
 
 def portfolio_return_tc(weight, to, tc):
     """
-    Computes portfolio return with costs of trading based on Returns Dataframe
+    Computes portfolio returns based on Returns Dataframe
     """
-    returns_tc = [0] * (len(weight) + 1)
 
-    for i in range(len(weight)):
-        returns_tc[i + 1] = (
-            (weight[i].transpose() @ Returns.iloc[rw + i][rw_returns[i].columns])
-            - to[i] * tc
-        )[0]
-    return returns_tc
+    returns = pd.Series(
+        data=[0] * (len(weight) + 1),
+        index=Returns.iloc[rw - 1 :].index,
+        name="Return",
+        dtype=float,
+    )
+
+    for i, w in enumerate(weight):
+
+        columns_idx = Returns.columns.get_indexer(rw_returns[i].columns)
+
+        returns_row = Returns.iloc[rw + i, columns_idx]
+
+        returns.iloc[i + 1] = (w.T @ returns_row) - to.iloc[i] * tc
+
+    return returns
 
 
 def portfolio_correlation(weight, corr):
     """
     Computes the correlation of a portfolio based on the correlation of its individual assets
     """
-    correl = pd.Series(index=range(rw_number), dtype="float64")
+
+    correl = pd.Series(
+        data=[np.nan] * rw_number,
+        index=Returns.iloc[rw : rw + rw_number].index,
+        name="Correlation",
+        dtype=float,
+    )
 
     for i in range(rw_number):
-        correl[i] = np.sum(weight[i].mul(corr[i], axis=0))[0]
+        correl.iloc[i] = weight[i].mul(corr[i], axis=0).sum()
 
-    correl.index = Returns.iloc[rw : rw + rw_number].index
+    return correl
+
+
+def portfolio_syn_correlation(weight, corr):
+    """
+    Computes the synthetic correlation of a portfolio based on the correlation of its individual assets
+    """
+
+    correl = pd.Series(
+        data=[np.nan] * rw_corr_number,
+        index=Returns.iloc[rw + 1 : rw + rw_corr_number + 1].index,
+        name="Syn_Correlation",
+        dtype=float,
+    )
+
+    for i in range(rw_corr_number):
+        correl.iloc[i] = weight[i].mul(corr[i], axis=0).sum()
+
     return correl
 
 
@@ -912,27 +975,15 @@ def portfolio(weight, tc=0.003):
     """
     Outputs portfolio value, return, turnover, value with transaction cost, returns with transaction costs, correlation of the portfolio to S&P500, correlation of the portfolio to bond index. Output is individual Series.
     """
-    aum = pd.Series(
-        data=portfolio_aum(weight), index=Returns.iloc[rw - 1 :].index, name="AUM"
-    )
+    aum = portfolio_aum(weight)
 
-    returns = pd.Series(
-        data=portfolio_return(weight), index=Returns.iloc[rw - 1 :].index, name="Return"
-    )
+    returns = portfolio_return(weight)
 
-    to = pd.Series(data=turnover(weight), index=Returns.iloc[rw:].index)
+    to = turnover(weight)
 
-    aum_tc = pd.Series(
-        data=portfolio_aum_tc(weight, to, tc),
-        index=Returns.iloc[rw - 1 :].index,
-        name="AUM",
-    )
+    aum_tc = portfolio_aum_tc(weight, to, tc)
 
-    returns_tc = pd.Series(
-        data=portfolio_return_tc(weight, to, tc),
-        index=Returns.iloc[rw - 1 :].index,
-        name="Return",
-    )
+    returns_tc = portfolio_return_tc(weight, to, tc)
 
     correl_sp = portfolio_correlation(weight, rw_sp)
     correl_bond = portfolio_correlation(weight, rw_bond)
@@ -940,45 +991,20 @@ def portfolio(weight, tc=0.003):
     return aum, returns, to, aum_tc, returns_tc, correl_sp, correl_bond
 
 
-def portfolio_syn_correlation(weight, corr):
-    """
-    Computes the correlation of a portfolio based on the correlation of its individual assets
-    """
-    correl = pd.Series(index=range(rw_corr_number), dtype="float64")
-
-    for i in range(rw_corr_number):
-        correl[i] = np.sum(weight[i].mul(corr[i], axis=0))[0]
-
-    correl.index = Returns.iloc[rw + 1 : rw + rw_corr_number + 1].index
-    return correl
-
-
 # FIXME: Default transaction cost 30bps
 def portfolio_syn(weight_syn, tc=0.003):
     """
     Outputs portfolio value, return, turnover, value with trading cost, returns with trading costs, correlation of the portfolio to S&P500, correlation of the portfolio to bond index. Output is individual Series.
     """
-    aum = pd.Series(
-        data=portfolio_aum(weight_syn), index=Returns.iloc[rw:].index, name="AUM"
-    )
+    aum = portfolio_aum(weight_syn)
 
-    returns = pd.Series(
-        data=portfolio_return(weight_syn), index=Returns.iloc[rw:].index, name="Return"
-    )
+    returns = portfolio_return(weight_syn)
 
-    to = pd.Series(data=turnover(weight_syn), index=Returns.iloc[rw + 1 :].index)
+    to = turnover(weight_syn)
 
-    aum_tc = pd.Series(
-        data=portfolio_aum_tc(weight_syn, to, tc),
-        index=Returns.iloc[rw:].index,
-        name="AUM",
-    )
+    aum_tc = portfolio_aum_tc(weight_syn, to, tc)
 
-    returns_tc = pd.Series(
-        data=portfolio_return_tc(weight_syn, to, tc),
-        index=Returns.iloc[rw:].index,
-        name="Return",
-    )
+    returns_tc = portfolio_return_tc(weight_syn, to, tc)
 
     correl_sp = portfolio_syn_correlation(weight_syn, rw_corr_sp)
     correl_bond = portfolio_syn_correlation(weight_syn, rw_corr_bond)
@@ -1423,9 +1449,7 @@ t_bench = pd.concat(
     axis=1,
     ignore_index=False,
 )
-with pd.ExcelWriter(
-    "Performance Measures.xlsx"
-) as writer:
+with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_bench.to_excel(writer, sheet_name="Benchmark")
 
 
@@ -1791,9 +1815,7 @@ t_historical_P1.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter(
-    "Performance Measures.xlsx"
-) as writer:
+with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_historical_P1.to_excel(writer, sheet_name="P1 - Historical")
 
 
@@ -2221,9 +2243,7 @@ t_syn_P1.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter(
-    "Performance Measures.xlsx"
-) as writer:
+with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_syn_P1.to_excel(writer, sheet_name="P1 - Synthetic")
 
 
@@ -2767,9 +2787,7 @@ t_historical_P2.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter(
-    "Performance Measures.xlsx"
-) as writer:
+with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_historical_P2.to_excel(writer, sheet_name="P2 - Historical")
 
 
@@ -3340,9 +3358,7 @@ t_syn_P2.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter(
-    "Performance Measures.xlsx"
-) as writer:
+with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_syn_P2.to_excel(writer, sheet_name="P2 - Synthetic")
 
 
@@ -3879,9 +3895,7 @@ t_historical_P3.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter(
-    "Performance Measures.xlsx"
-) as writer:
+with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_historical_P3.to_excel(writer, sheet_name="P3 - Historical")
 
 
@@ -4423,9 +4437,7 @@ t_syn_P3.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter(
-    "Performance Measures.xlsx"
-) as writer:
+with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_syn_P3.to_excel(writer, sheet_name="P3 - Synthetic")
 
 
@@ -5075,9 +5087,7 @@ t_historical_P4.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter(
-    "Performance Measures.xlsx"
-) as writer:
+with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_historical_P4.to_excel(writer, sheet_name="P4 - Historical")
 
 
@@ -5735,9 +5745,7 @@ t_syn_P4.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter(
-    "Performance Measures.xlsx"
-) as writer:
+with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_syn_P4.to_excel(writer, sheet_name="P4 - Synthetic")
 
 
