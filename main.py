@@ -26,17 +26,6 @@ from sklearn.linear_model import LinearRegression
 import portfolios_functions as pf
 
 
-
-
-
-
-
-# Portfolio-class branch test git
-
-
-
-
-
 ###############################################################################
 
 
@@ -1149,10 +1138,10 @@ Riskfree.columns = ["DGS10"]
 Riskfree = Riskfree.astype(float)
 Riskfree.index = pd.to_datetime(Riskfree.index, format="%Y-%m-%d %H:%M:%S")
 Riskfree = Riskfree / 100
-
+Rf_mean = Riskfree.mean().iloc[0]
 # we get the average monthly risk free rate from the average annualized 10y T-bill rate
 
-rf = float((Riskfree.mean() + 1) ** (1 / 12) - 1)
+rf = (Rf_mean + 1) ** (1 / 12) - 1
 
 ###############################################################################
 ###############################################################################
@@ -1199,14 +1188,14 @@ def max_drawdown(returns):
     """
 
     n = len(returns)
-    peak = returns[0]
+    peak = returns.iloc[0]
     max_drawdown = 0.0
 
     for i in range(1, n):
-        if returns[i] > peak:
-            peak = returns[i]
+        if returns.iloc[i] > peak:
+            peak = returns.iloc[i]
         else:
-            drawdown = (peak - returns[i]) / peak
+            drawdown = (peak - returns.iloc[i]) / peak
             if drawdown > max_drawdown:
                 max_drawdown = drawdown
 
@@ -1243,9 +1232,9 @@ def performance_measures(weight, aum, returns, to, syn=False):
     MDD = max_drawdown(aum)
     CVaR = pf.cvar(returns, 0.01)
     CDaR = pf.cdar(returns, 0.01)
-    SR = (AR - float(Riskfree.mean())) / SD
-    M_squared = float(Riskfree.mean()) + SR * bench.iloc[rw:].std() * np.sqrt(12)
-    Calmar = (AR - float(Riskfree.mean())) / MDD
+    SR = (AR - Rf_mean) / SD
+    M_squared = Rf_mean + SR * bench.iloc[rw:].std() * np.sqrt(12)
+    Calmar = (AR - Rf_mean) / MDD
 
     if syn == True:
         R_squared = r_squared(returns, returns_syn_bench)
@@ -1295,6 +1284,20 @@ def performance_measures(weight, aum, returns, to, syn=False):
     return table
 
 
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+
+#                           Bechmark Portfolios                               #
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+
 # Weight here equal 0, used to get the performance table,
 weight_FoF = [0] * rw_number
 
@@ -1324,19 +1327,6 @@ t_FoF["Corr. Bonds"] = (
     .iloc[0][1]
 )
 t_FoF = pd.DataFrame(t_FoF, columns=["FoF"])
-###############################################################################
-###############################################################################
-###############################################################################
-
-
-#                           Bechmark Portfolios                               #
-
-
-###############################################################################
-###############################################################################
-###############################################################################
-###############################################################################
-
 
 # Equally weighted portfolio
 
