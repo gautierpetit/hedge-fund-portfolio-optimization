@@ -981,8 +981,8 @@ class Portfolio:
         tracking_error = np.std(excess_returns, ddof=1)
         return average_excess_return / tracking_error
 
-    def _max_drawdown(self):
-        aum = self.compute_aum()
+    def _max_drawdown(self, aum):
+        
         n = len(aum)
         peak = aum.iloc[0]
         max_dd = 0.0
@@ -1008,6 +1008,7 @@ class Portfolio:
         """
 
         syn = self.syn
+
         if tc:
             aum = self.compute_aum_tc()
             returns = self.compute_return_tc()
@@ -1020,7 +1021,7 @@ class Portfolio:
 
         AR = (1 + returns.mean()) ** 12 - 1
         SD = returns.std() * np.sqrt(12)
-        MDD = self._max_drawdown()
+        MDD = self._max_drawdown(aum)
         CVaR = pf.cvar(returns, 0.01)  # Note: you need to ensure 'pf' is available.
         CDaR = pf.cdar(returns, 0.01)  # Same here
         SR = (AR - Rf_mean) / SD
