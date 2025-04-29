@@ -36,7 +36,11 @@ import portfolios_functions as pf
 
 
 Price = pd.read_excel(
-    "Data/HFRI_full.xlsx",sheet_name= "Data" ,index_col=0, parse_dates=True, date_format="%b-%y"
+    "Data/HFRI_full.xlsx",
+    sheet_name="Data",
+    index_col=0,
+    parse_dates=True,
+    date_format="%b-%y",
 )
 
 Benchmark = pd.read_excel(
@@ -817,7 +821,7 @@ class PortfolioData:
         rw_sp,
         rw_bond,
         rw_corr_sp,
-        rw_corr_bond
+        rw_corr_bond,
     ):
         self.Returns = Returns
         self.rw = rw
@@ -830,14 +834,25 @@ class PortfolioData:
         self.rw_corr_bond = rw_corr_bond
 
 
-default_data  = PortfolioData(Returns, rw, rw_returns, rw_number, rw_corr_number, rw_sp, rw_bond, rw_corr_sp, rw_corr_bond)
+default_data = PortfolioData(
+    Returns,
+    rw,
+    rw_returns,
+    rw_number,
+    rw_corr_number,
+    rw_sp,
+    rw_bond,
+    rw_corr_sp,
+    rw_corr_bond,
+)
 
 # Definition of functions:
+
 
 # FIXME: Default transaction cost 30bps
 class Portfolio:
     def __init__(
-        self, weight,data: PortfolioData = default_data , tc=0.003, syn=False, name=None
+        self, weight, data: PortfolioData = default_data, tc=0.003, syn=False, name=None
     ):
         """
         Initialize Portfolio with weights, returns, transaction cost, and related data.
@@ -846,17 +861,21 @@ class Portfolio:
         self.data = data
         self.tc = tc
         self.syn = syn
-        self.name = name  or "Unnamed Portfolio"
+        self.name = name or "Unnamed Portfolio"
 
         # Set useful indices once
         self.index_full = self.data.Returns.iloc[self.data.rw - 1 :].index
-        self.index_short = self.data.Returns.iloc[self.data.rw:].index
-        self.index_correlation = self.data.Returns.iloc[self.data.rw : self.data.rw + self.data.rw_number].index
-        
-        self.index_full_syn = self.data.Returns.iloc[self.data.rw:].index
-        self.index_short_syn = self.data.Returns.iloc[self.data.rw+1:].index
-        self.index_correlation_syn = self.data.Returns.iloc[self.data.rw + 1 : self.data.rw + self.data.rw_corr_number + 1].index
-    
+        self.index_short = self.data.Returns.iloc[self.data.rw :].index
+        self.index_correlation = self.data.Returns.iloc[
+            self.data.rw : self.data.rw + self.data.rw_number
+        ].index
+
+        self.index_full_syn = self.data.Returns.iloc[self.data.rw :].index
+        self.index_short_syn = self.data.Returns.iloc[self.data.rw + 1 :].index
+        self.index_correlation_syn = self.data.Returns.iloc[
+            self.data.rw + 1 : self.data.rw + self.data.rw_corr_number + 1
+        ].index
+
     def compute_aum(self):
 
         aum = pd.Series(
@@ -865,9 +884,11 @@ class Portfolio:
             name="AUM",
             dtype=float,
         )
-        
+
         for i, w in enumerate(self.weight):
-            columns_idx = self.data.Returns.columns.get_indexer(self.data.rw_returns[i].columns)
+            columns_idx = self.data.Returns.columns.get_indexer(
+                self.data.rw_returns[i].columns
+            )
             returns_row = self.data.Returns.iloc[self.data.rw + i, columns_idx]
             aum.iloc[i + 1] = (1 + w.T @ returns_row) * aum.iloc[i]
         return aum
@@ -880,7 +901,9 @@ class Portfolio:
             dtype=float,
         )
         for i, w in enumerate(self.weight):
-            columns_idx = self.data.Returns.columns.get_indexer(self.data.rw_returns[i].columns)
+            columns_idx = self.data.Returns.columns.get_indexer(
+                self.data.rw_returns[i].columns
+            )
             returns_row = self.data.Returns.iloc[self.data.rw + i, columns_idx]
             returns.iloc[i + 1] = w.T @ returns_row
         return returns
@@ -893,7 +916,9 @@ class Portfolio:
             dtype=float,
         )
         for i in range(len(self.weight) - 1):
-            columns_idx = self.data.Returns.columns.get_indexer(self.data.rw_returns[i].columns)
+            columns_idx = self.data.Returns.columns.get_indexer(
+                self.data.rw_returns[i].columns
+            )
             returns_row = self.data.Returns.iloc[self.data.rw + i, columns_idx]
             w1 = self.weight[i + 1].squeeze().values
             w0 = (self.weight[i].squeeze() * (1 + returns_row)).values
@@ -914,7 +939,9 @@ class Portfolio:
             dtype=float,
         )
         for i, w in enumerate(self.weight):
-            columns_idx = self.data.Returns.columns.get_indexer(self.data.rw_returns[i].columns)
+            columns_idx = self.data.Returns.columns.get_indexer(
+                self.data.rw_returns[i].columns
+            )
             returns_row = self.data.Returns.iloc[self.data.rw + i, columns_idx]
             net_return = (w.T @ returns_row) - turnover.iloc[i] * self.tc
             aum_tc.iloc[i + 1] = (1 + net_return) * aum_tc.iloc[i]
@@ -929,7 +956,9 @@ class Portfolio:
             dtype=float,
         )
         for i, w in enumerate(self.weight):
-            columns_idx = self.data.Returns.columns.get_indexer(self.data.rw_returns[i].columns)
+            columns_idx = self.data.Returns.columns.get_indexer(
+                self.data.rw_returns[i].columns
+            )
             returns_row = self.data.Returns.iloc[self.data.rw + i, columns_idx]
             returns_tc.iloc[i + 1] = (w.T @ returns_row) - turnover.iloc[i] * self.tc
         return returns_tc
@@ -945,11 +974,11 @@ class Portfolio:
             correl.iloc[i] = self.weight[i].mul(corr_data[i], axis=0).sum()
         return correl
 
-    def compute_correlation_syn(self, corr_data):  
+    def compute_correlation_syn(self, corr_data):
 
         correl = pd.Series(
             data=[np.nan] * self.data.rw_corr_number,
-             index=self.index_correlation_syn if self.syn else self.index_correlation,
+            index=self.index_correlation_syn if self.syn else self.index_correlation,
             name="Syn_Correlation",
             dtype=float,
         )
@@ -963,7 +992,6 @@ class Portfolio:
         """
         Compute all portfolio series and return them
         """
-        
 
         aum = self.compute_aum()
         returns = self.compute_return()
@@ -973,8 +1001,8 @@ class Portfolio:
 
         if self.syn:
             correl_sp = self.compute_correlation_syn(self.data.rw_corr_sp)
-            correl_bond = self.compute_correlation_syn(self.data.rw_corr_bond)            
-                  
+            correl_bond = self.compute_correlation_syn(self.data.rw_corr_bond)
+
         else:
             correl_sp = self.compute_correlation(self.data.rw_sp)
             correl_bond = self.compute_correlation(self.data.rw_bond)
@@ -988,7 +1016,7 @@ class Portfolio:
         return average_excess_return / tracking_error
 
     def _max_drawdown(self, aum):
-        
+
         n = len(aum)
         peak = aum.iloc[0]
         max_dd = 0.0
@@ -1013,17 +1041,15 @@ class Portfolio:
         Computes performance measures and returns a pandas Series.
         """
 
-        
-
         if tc:
             aum = self.compute_aum_tc()
             returns = self.compute_return_tc()
-        
+
         else:
             aum = self.compute_aum()
             returns = self.compute_return()
 
-        to = self.compute_turnover()    
+        to = self.compute_turnover()
 
         AR = (1 + returns.mean()) ** 12 - 1
         SD = returns.std() * np.sqrt(12)
@@ -1079,9 +1105,9 @@ class Portfolio:
                 "Turnover",
             ],
         )
-        return measure    
+        return measure
 
-    def compute_table(self):    
+    def compute_table(self):
         table = pd.concat(
             [
                 self.compute_performance(tc=False),
@@ -1089,14 +1115,13 @@ class Portfolio:
             ],
             axis=1,
             ignore_index=True,
-            )
+        )
         table.columns = [f"{self.name} - No costs", f"{self.name} - With costs"]
 
         return table
-    
+
     def stackplts(self):
         weight_frames = []  # Create a list to collect weight DataFrames
-
 
         for i in range(len(self.weight)):
             weight_frames.append(self.weight[i].T)
@@ -1122,6 +1147,7 @@ class Portfolio:
         ax.set_ylim(0, 1)
         ax.set_title(f"Weight allocation: {self.name} portfolio")
         fig.savefig(f"Stackplots/{self.name}.png")
+        plt.close(fig)
 
     def turnover_plot(self, to_comp):
         """
@@ -1158,6 +1184,7 @@ class Portfolio:
         plt.ylabel("Turnover")
         plt.xlabel("Time")
         plt.savefig(f"Turnover/{self.name}_costs.png")
+        plt.close(fig)
 
     def correlation_plot(self, corrsp_comp, corrbond_comp):
         """
@@ -1165,15 +1192,14 @@ class Portfolio:
         """
         syn = self.syn
 
-        
         if syn:
             corrsp = self.compute_correlation_syn(self.data.rw_corr_sp)
-            corrbond = self.compute_correlation_syn(self.data.rw_corr_bond)            
-                  
+            corrbond = self.compute_correlation_syn(self.data.rw_corr_bond)
+
         else:
             corrsp = self.compute_correlation(self.data.rw_sp)
             corrbond = self.compute_correlation(self.data.rw_bond)
-            
+
         # Create a new figure and axes for each plot
         fig, ax = plt.subplots(figsize=(16, 9))
 
@@ -1184,12 +1210,12 @@ class Portfolio:
 
         plt.title(f"Correlation to stocks and bonds:{self.name} portfolio")
         plt.legend(
-           [
-               "S&P constrained",
-               "Bond constrained",
-               "S&P unconstrained",
-               "Bond unconstrained",
-           ],
+            [
+                "S&P constrained",
+                "Bond constrained",
+                "S&P unconstrained",
+                "Bond unconstrained",
+            ],
             loc="upper center",
             bbox_to_anchor=(0.5, -0.06),
             ncol=2,
@@ -1199,7 +1225,7 @@ class Portfolio:
         plt.ylabel("Correlation")
         plt.ylim(-1, 1)
         plt.savefig(f"Correlation/{self.name}_correlations.png")
-
+        plt.close(fig)
 
 
 ###############################################################################
@@ -1251,8 +1277,6 @@ aum_FoF = (
 )
 
 
-
-
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -1266,8 +1290,7 @@ aum_FoF = (
 ###############################################################################
 ###############################################################################
 
-t_FoF = pd.read_excel(
-    "Data/HFRI_full.xlsx",sheet_name= "FoF" ,index_col=0)
+t_FoF = pd.read_excel("Data/HFRI_full.xlsx", sheet_name="FoF", index_col=0)
 
 # Equally weighted portfolio
 
@@ -1284,8 +1307,7 @@ for i in tqdm(range(rw_number), desc="EW optimization"):
 del i
 
 
-
-EW = Portfolio(weight_EW, name= "EW")
+EW = Portfolio(weight_EW, name="EW")
 
 EW.stackplts()
 
@@ -1308,13 +1330,11 @@ for i in tqdm(range(rw_number), desc="MVP optimization"):
 del i
 
 
-
-MVP = Portfolio(weight_MVP, name= "MVP")
+MVP = Portfolio(weight_MVP, name="MVP")
 
 MVP.stackplts()
 
 t_MVP = MVP.compute_table()
-
 
 
 ###############################################################################
@@ -1333,7 +1353,7 @@ for i in tqdm(range(rw_number), desc="MSR optimization"):
 del i
 
 
-MSR = Portfolio(weight_MSR, name= "MSR")
+MSR = Portfolio(weight_MSR, name="MSR")
 
 MSR.stackplts()
 
@@ -1437,12 +1457,11 @@ for i in tqdm(range(rw_number), desc="CVAR optimization"):
 
 del i
 
-CVAR = Portfolio(weight_CVAR, name= "CVAR")
+CVAR = Portfolio(weight_CVAR, name="CVAR")
 
 CVAR.stackplts()
 
 t_CVAR = CVAR.compute_table()
-
 
 
 # Optimal CVAR:
@@ -1458,13 +1477,11 @@ for i in tqdm(range(rw_number), desc="CVAR risk optimization"):
 
 del i
 
-CVAR_risk = Portfolio(weight_CVAR_risk, name= "CVAR risk")
+CVAR_risk = Portfolio(weight_CVAR_risk, name="CVAR risk")
 
 CVAR_risk.stackplts()
 
 t_CVAR_risk = CVAR_risk.compute_table()
-
-
 
 
 ###############################################################################
@@ -1483,13 +1500,11 @@ for i in tqdm(range(rw_number), desc="CDAR optimization"):
 del i
 
 
-
-CDAR = Portfolio(weight_CDAR, name= "CDAR")
+CDAR = Portfolio(weight_CDAR, name="CDAR")
 
 CDAR.stackplts()
 
 t_CDAR = CDAR.compute_table()
-
 
 
 # Optimal CDAR:
@@ -1506,12 +1521,11 @@ for i in tqdm(range(rw_number), desc="CDAR risk optimization"):
 del i
 
 
-CDAR_risk = Portfolio(weight_CDAR_risk, name= "CDAR risk")
+CDAR_risk = Portfolio(weight_CDAR_risk, name="CDAR risk")
 
 CDAR_risk.stackplts()
 
 t_CDAR_risk = CDAR_risk.compute_table()
-
 
 
 ###############################################################################
@@ -1531,12 +1545,11 @@ for i in tqdm(range(rw_number), desc="Omegamin optimization"):
 del i
 
 
-Omegamin = Portfolio(weight_Omegamin, name= "Omega denum.")
+Omegamin = Portfolio(weight_Omegamin, name="Omega denum.")
 
 Omegamin.stackplts()
 
 t_Omegamin = Omegamin.compute_table()
-
 
 
 # Optimal Omega:
@@ -1553,12 +1566,11 @@ for i in tqdm(range(rw_number), desc="Omegamax optimization"):
 del i
 
 
-Omegamax = Portfolio(weight_Omegamax, name= "Omega ratio")
+Omegamax = Portfolio(weight_Omegamax, name="Omega ratio")
 
 Omegamax.stackplts()
 
 t_Omegamax = Omegamax.compute_table()
-
 
 
 ###############################################################################
@@ -1708,12 +1720,11 @@ for i in tqdm(range(rw_corr_number), desc="syn CVAR optimization"):
 
 del i
 
-syn_CVAR = Portfolio(weight_syn_CVAR, syn =True, name= "CVAR synth.")
+syn_CVAR = Portfolio(weight_syn_CVAR, syn=True, name="CVAR synth.")
 
 syn_CVAR.stackplts()
 
 t_syn_CVAR = syn_CVAR.compute_table()
-
 
 
 # Optimal CVAR:
@@ -1729,12 +1740,11 @@ for i in tqdm(range(rw_corr_number), desc="syn CVAR risk optimization"):
 
 del i
 
-syn_CVAR_risk = Portfolio(weight_syn_CVAR_risk, syn =True, name= "CVAR risk synth.")
+syn_CVAR_risk = Portfolio(weight_syn_CVAR_risk, syn=True, name="CVAR risk synth.")
 
 syn_CVAR_risk.stackplts()
 
 t_syn_CVAR_risk = syn_CVAR_risk.compute_table()
-
 
 
 ###############################################################################
@@ -1754,7 +1764,7 @@ for i in tqdm(range(rw_corr_number), desc="syn CDAR optimization"):
 del i
 
 
-syn_CDAR = Portfolio(weight_syn_CDAR, syn =True, name= "CDAR synth.")
+syn_CDAR = Portfolio(weight_syn_CDAR, syn=True, name="CDAR synth.")
 
 syn_CDAR.stackplts()
 
@@ -1774,7 +1784,7 @@ for i in tqdm(range(rw_corr_number), desc="syn CDAR risk optimization"):
 
 del i
 
-syn_CDAR_risk = Portfolio(weight_syn_CDAR_risk, syn =True, name= "CDAR risk synth.")
+syn_CDAR_risk = Portfolio(weight_syn_CDAR_risk, syn=True, name="CDAR risk synth.")
 
 syn_CDAR_risk.stackplts()
 
@@ -1795,7 +1805,7 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamin optimization"):
 
 del i
 
-syn_Omegamin = Portfolio(weight_syn_Omegamin, syn =True, name= "Omega denum. synth.")
+syn_Omegamin = Portfolio(weight_syn_Omegamin, syn=True, name="Omega denum. synth.")
 
 syn_Omegamin.stackplts()
 
@@ -1815,12 +1825,11 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamax optimization"):
 
 del i
 
-syn_Omegamax = Portfolio(weight_syn_Omegamax, syn =True, name= "Omega ratio synth.")
+syn_Omegamax = Portfolio(weight_syn_Omegamax, syn=True, name="Omega ratio synth.")
 
 syn_Omegamax.stackplts()
 
 t_syn_Omegamax = syn_Omegamax.compute_table()
-
 
 
 ###############################################################################
@@ -1982,14 +1991,13 @@ for i in tqdm(range(rw_number), desc="CVAR mint"):
 del i
 
 
-CVAR_mint = Portfolio(weight_CVAR_mint, name= "Min t - CVAR")
+CVAR_mint = Portfolio(weight_CVAR_mint, name="Min t - CVAR")
 
 CVAR_mint.stackplts()
 
 CVAR_mint.turnover_plot(CVAR.compute_turnover())
 
 t_CVAR_mint = CVAR_mint.compute_table()
-
 
 
 # Optimal CVAR:
@@ -2033,17 +2041,13 @@ for i in tqdm(range(rw_number), desc="CVAR risk mint optimization"):
 
 del i
 
-CVAR_risk_mint = Portfolio(weight_CVAR_risk_mint, name= "Min t - CVAR")
+CVAR_risk_mint = Portfolio(weight_CVAR_risk_mint, name="Min t - CVAR")
 
 CVAR_risk_mint.stackplts()
 
 CVAR_risk_mint.turnover_plot(CVAR_risk.compute_turnover())
 
 t_CVAR_risk_mint = CVAR_risk_mint.compute_table()
-
-
-
-
 
 
 ###############################################################################
@@ -2063,15 +2067,13 @@ for i in tqdm(range(rw_number), desc="CDAR mint optimization"):
 
 del i
 
-CDAR_mint = Portfolio(weight_CDAR_mint, name= "Min t - CDAR")
+CDAR_mint = Portfolio(weight_CDAR_mint, name="Min t - CDAR")
 
 CDAR_mint.stackplts()
 
 CDAR_mint.turnover_plot(CDAR.compute_turnover())
 
 t_CDAR_mint = CDAR_mint.compute_table()
-
-
 
 
 # Optimal CDAR:
@@ -2117,15 +2119,13 @@ for i in tqdm(range(rw_number), desc="CDAR risk mint optimization"):
 del i
 
 
-CDAR_risk_mint = Portfolio(weight_CDAR_risk_mint, name= "Min t - CDAR")
+CDAR_risk_mint = Portfolio(weight_CDAR_risk_mint, name="Min t - CDAR")
 
 CDAR_risk_mint.stackplts()
 
 CDAR_risk_mint.turnover_plot(CDAR_risk.compute_turnover())
 
 t_CDAR_risk_mint = CDAR_risk_mint.compute_table()
-
-
 
 
 ###############################################################################
@@ -2146,14 +2146,13 @@ for i in tqdm(range(rw_number), desc="Omegamin mint optimization"):
 del i
 
 
-Omegamin_mint = Portfolio(weight_Omegamin_mint, name= "Min t - Omega denum.")
+Omegamin_mint = Portfolio(weight_Omegamin_mint, name="Min t - Omega denum.")
 
 Omegamin_mint.stackplts()
 
 Omegamin_mint.turnover_plot(Omegamin.compute_turnover())
 
 t_Omegamin_mint = Omegamin_mint.compute_table()
-
 
 
 # Optimal Omega:
@@ -2199,7 +2198,7 @@ for i in tqdm(range(rw_number), desc="Omegamax mint optimization"):
 del i
 
 
-Omegamax_mint = Portfolio(weight_Omegamax_mint, name= "Min t - Omega ratio")
+Omegamax_mint = Portfolio(weight_Omegamax_mint, name="Min t - Omega ratio")
 
 Omegamax_mint.stackplts()
 
@@ -2360,15 +2359,13 @@ for i in tqdm(range(rw_corr_number), desc="syn CVAR mint optimization"):
 
 del i
 
-syn_CVAR_mint = Portfolio(weight_syn_CVAR_mint,syn = True, name= "Min t - CVAR synth.")
+syn_CVAR_mint = Portfolio(weight_syn_CVAR_mint, syn=True, name="Min t - CVAR synth.")
 
 syn_CVAR_mint.stackplts()
 
 syn_CVAR_mint.turnover_plot(syn_CVAR.compute_turnover())
 
 t_syn_CVAR_mint = syn_CVAR_mint.compute_table()
-
-
 
 
 # Optimal CVAR:
@@ -2416,14 +2413,15 @@ for i in tqdm(range(rw_corr_number), desc="syn CVAR risk mint optimization"):
 
 del i
 
-syn_CVAR_risk_mint = Portfolio(weight_syn_CVAR_risk_mint,syn = True, name= "Min t - CVAR synth.")
+syn_CVAR_risk_mint = Portfolio(
+    weight_syn_CVAR_risk_mint, syn=True, name="Min t - CVAR synth."
+)
 
 syn_CVAR_risk_mint.stackplts()
 
 syn_CVAR_risk_mint.turnover_plot(syn_CVAR_risk.compute_turnover())
 
 t_syn_CVAR_risk_mint = syn_CVAR_risk_mint.compute_table()
-
 
 
 ###############################################################################
@@ -2444,14 +2442,13 @@ for i in tqdm(range(rw_corr_number), desc="syn CDAR mint optimization"):
 
 del i
 
-syn_CDAR_mint = Portfolio(weight_syn_CDAR_mint,syn = True, name= "Min t - CDAR synth.")
+syn_CDAR_mint = Portfolio(weight_syn_CDAR_mint, syn=True, name="Min t - CDAR synth.")
 
 syn_CDAR_mint.stackplts()
 
 syn_CDAR_mint.turnover_plot(syn_CDAR.compute_turnover())
 
 t_syn_CDAR_mint = syn_CDAR_mint.compute_table()
-
 
 
 # Optimal CDAR:
@@ -2500,14 +2497,15 @@ for i in tqdm(range(rw_corr_number), desc="syn CDAR risk mint optimization"):
 del i
 
 
-syn_CDAR_risk_mint = Portfolio(weight_syn_CDAR_risk_mint,syn = True, name= "Min t - CDAR synth.")
+syn_CDAR_risk_mint = Portfolio(
+    weight_syn_CDAR_risk_mint, syn=True, name="Min t - CDAR synth."
+)
 
 syn_CDAR_risk_mint.stackplts()
 
 syn_CDAR_risk_mint.turnover_plot(syn_CDAR_risk.compute_turnover())
 
 t_syn_CDAR_risk_mint = syn_CDAR_risk_mint.compute_table()
-
 
 
 ###############################################################################
@@ -2529,14 +2527,15 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamin mint optimization"):
 
 del i
 
-syn_Omegamin_mint = Portfolio(weight_syn_Omegamin_mint,syn = True, name= "Min t - Omega denum. synth")
+syn_Omegamin_mint = Portfolio(
+    weight_syn_Omegamin_mint, syn=True, name="Min t - Omega denum. synth"
+)
 
 syn_Omegamin_mint.stackplts()
 
 syn_Omegamin_mint.turnover_plot(syn_Omegamin.compute_turnover())
 
 t_syn_Omegamin_mint = syn_Omegamin_mint.compute_table()
-
 
 
 # Optimal Omega:
@@ -2584,14 +2583,15 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamax mint optimization"):
 del i
 
 
-syn_Omegamax_mint = Portfolio(weight_syn_Omegamax_mint,syn = True, name= "Min t - Omega ratio synth.")
+syn_Omegamax_mint = Portfolio(
+    weight_syn_Omegamax_mint, syn=True, name="Min t - Omega ratio synth."
+)
 
 syn_Omegamax_mint.stackplts()
 
 syn_Omegamax_mint.turnover_plot(syn_Omegamax.compute_turnover())
 
 t_syn_Omegamax_mint = syn_Omegamax_mint.compute_table()
-
 
 
 ###############################################################################
@@ -2765,16 +2765,15 @@ for i in tqdm(range(rw_number), desc="CVAR optimization under constraint"):
 del i
 
 
-CVAR_cons = Portfolio(weight_CVAR_cons, name= "Corr - CVAR")
+CVAR_cons = Portfolio(weight_CVAR_cons, name="Corr - CVAR")
 
 CVAR_cons.stackplts()
 
-CVAR_cons.correlation_plot(CVAR.compute_correlation(rw_sp),CVAR.compute_correlation(rw_bond))
+CVAR_cons.correlation_plot(
+    CVAR.compute_correlation(rw_sp), CVAR.compute_correlation(rw_bond)
+)
 
 t_CVAR_cons = CVAR_cons.compute_table()
-
-
-
 
 
 # Optimal CVAR:
@@ -2796,11 +2795,13 @@ for i in tqdm(range(rw_number), desc="CVAR risk optimization under constraint"):
 
 del i
 
-CVAR_risk_cons = Portfolio(weight_CVAR_risk_cons, name= "Corr - CVAR Risk")
+CVAR_risk_cons = Portfolio(weight_CVAR_risk_cons, name="Corr - CVAR Risk")
 
 CVAR_risk_cons.stackplts()
 
-CVAR_risk_cons.correlation_plot(CVAR_risk.compute_correlation(rw_sp),CVAR_risk.compute_correlation(rw_bond))
+CVAR_risk_cons.correlation_plot(
+    CVAR_risk.compute_correlation(rw_sp), CVAR_risk.compute_correlation(rw_bond)
+)
 
 t_CVAR_risk_cons = CVAR_risk_cons.compute_table()
 
@@ -2827,14 +2828,15 @@ for i in tqdm(range(rw_number), desc="CDAR optimization under constraint"):
 
 del i
 
-CDAR_cons = Portfolio(weight_CDAR_cons, name= "Corr - CDAR")
+CDAR_cons = Portfolio(weight_CDAR_cons, name="Corr - CDAR")
 
 CDAR_cons.stackplts()
 
-CDAR_cons.correlation_plot(CDAR.compute_correlation(rw_sp),CDAR.compute_correlation(rw_bond))
+CDAR_cons.correlation_plot(
+    CDAR.compute_correlation(rw_sp), CDAR.compute_correlation(rw_bond)
+)
 
 t_CDAR_cons = CDAR_cons.compute_table()
-
 
 
 # Optimal CDAR:
@@ -2856,14 +2858,15 @@ for i in tqdm(range(rw_number), desc="CDAR risk optimization under constraint"):
 
 del i
 
-CDAR_risk_cons = Portfolio(weight_CDAR_risk_cons, name= "Corr - CDAR Risk")
+CDAR_risk_cons = Portfolio(weight_CDAR_risk_cons, name="Corr - CDAR Risk")
 
 CDAR_risk_cons.stackplts()
 
-CDAR_risk_cons.correlation_plot(CDAR_risk.compute_correlation(rw_sp),CDAR_risk.compute_correlation(rw_bond))
+CDAR_risk_cons.correlation_plot(
+    CDAR_risk.compute_correlation(rw_sp), CDAR_risk.compute_correlation(rw_bond)
+)
 
 t_CDAR_risk_cons = CDAR_risk_cons.compute_table()
-
 
 
 ###############################################################################
@@ -2888,16 +2891,15 @@ for i in tqdm(range(rw_number), desc="Omegamin optimization under constraint"):
 
 del i
 
-Omegamin_cons = Portfolio(weight_Omegamin_cons, name= "Corr - Omegamin")
+Omegamin_cons = Portfolio(weight_Omegamin_cons, name="Corr - Omegamin")
 
 Omegamin_cons.stackplts()
 
-Omegamin_cons.correlation_plot(Omegamin.compute_correlation(rw_sp),Omegamin.compute_correlation(rw_bond))
+Omegamin_cons.correlation_plot(
+    Omegamin.compute_correlation(rw_sp), Omegamin.compute_correlation(rw_bond)
+)
 
 t_Omegamin_cons = Omegamin_cons.compute_table()
-
-
-
 
 
 # Optimal Omega:
@@ -2919,14 +2921,15 @@ for i in tqdm(range(rw_number), desc="Omegamax optimization under constraint"):
 
 del i
 
-Omegamax_cons = Portfolio(weight_Omegamax_cons, name= "Corr - Omegamax")
+Omegamax_cons = Portfolio(weight_Omegamax_cons, name="Corr - Omegamax")
 
 Omegamax_cons.stackplts()
 
-Omegamax_cons.correlation_plot(Omegamax.compute_correlation(rw_sp),Omegamax.compute_correlation(rw_bond))
+Omegamax_cons.correlation_plot(
+    Omegamax.compute_correlation(rw_sp), Omegamax.compute_correlation(rw_bond)
+)
 
 t_Omegamax_cons = Omegamax_cons.compute_table()
-
 
 
 ###############################################################################
@@ -3086,15 +3089,16 @@ for i in tqdm(range(rw_corr_number), desc="syn CVAR optimization under constrain
 
 del i
 
-syn_CVAR_cons = Portfolio(weight_syn_CVAR_cons,syn =True, name= "Corr - CVAR synth.")
+syn_CVAR_cons = Portfolio(weight_syn_CVAR_cons, syn=True, name="Corr - CVAR synth.")
 
 syn_CVAR_cons.stackplts()
 
-syn_CVAR_cons.correlation_plot(syn_CVAR.compute_correlation_syn(rw_corr_sp),syn_CVAR.compute_correlation_syn(rw_corr_bond))
+syn_CVAR_cons.correlation_plot(
+    syn_CVAR.compute_correlation_syn(rw_corr_sp),
+    syn_CVAR.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_CVAR_cons = syn_CVAR_cons.compute_table()
-
-
 
 
 # Optimal CVAR:
@@ -3119,11 +3123,16 @@ for i in tqdm(
 del i
 
 
-syn_CVAR_risk_cons = Portfolio(weight_syn_CVAR_risk_cons,syn =True, name= "Corr - CVAR risk synth.")
+syn_CVAR_risk_cons = Portfolio(
+    weight_syn_CVAR_risk_cons, syn=True, name="Corr - CVAR risk synth."
+)
 
 syn_CVAR_risk_cons.stackplts()
 
-syn_CVAR_risk_cons.correlation_plot(syn_CVAR_risk.compute_correlation_syn(rw_corr_sp),syn_CVAR_risk.compute_correlation_syn(rw_corr_bond))
+syn_CVAR_risk_cons.correlation_plot(
+    syn_CVAR_risk.compute_correlation_syn(rw_corr_sp),
+    syn_CVAR_risk.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_CVAR_risk_cons = syn_CVAR_risk_cons.compute_table()
 
@@ -3150,14 +3159,16 @@ for i in tqdm(range(rw_corr_number), desc="syn CDAR optimization under constrain
 
 del i
 
-syn_CDAR_cons = Portfolio(weight_syn_CDAR_cons,syn =True, name= "Corr - CDAR synth.")
+syn_CDAR_cons = Portfolio(weight_syn_CDAR_cons, syn=True, name="Corr - CDAR synth.")
 
 syn_CDAR_cons.stackplts()
 
-syn_CDAR_cons.correlation_plot(syn_CDAR.compute_correlation_syn(rw_corr_sp),syn_CDAR.compute_correlation_syn(rw_corr_bond))
+syn_CDAR_cons.correlation_plot(
+    syn_CDAR.compute_correlation_syn(rw_corr_sp),
+    syn_CDAR.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_CDAR_cons = syn_CDAR_cons.compute_table()
-
 
 
 # Optimal CDAR:
@@ -3181,14 +3192,18 @@ for i in tqdm(
 
 del i
 
-syn_CDAR_risk_cons = Portfolio(weight_syn_CDAR_risk_cons,syn =True, name= "Corr - CDAR synth.")
+syn_CDAR_risk_cons = Portfolio(
+    weight_syn_CDAR_risk_cons, syn=True, name="Corr - CDAR synth."
+)
 
 syn_CDAR_risk_cons.stackplts()
 
-syn_CDAR_risk_cons.correlation_plot(syn_CDAR_risk.compute_correlation_syn(rw_corr_sp),syn_CDAR_risk.compute_correlation_syn(rw_corr_bond))
+syn_CDAR_risk_cons.correlation_plot(
+    syn_CDAR_risk.compute_correlation_syn(rw_corr_sp),
+    syn_CDAR_risk.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_CDAR_risk_cons = syn_CDAR_risk_cons.compute_table()
-
 
 
 ###############################################################################
@@ -3212,11 +3227,16 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamin optimization under const
 
 del i
 
-syn_Omegamin_cons = Portfolio(weight_syn_Omegamin_cons,syn =True, name= "Corr - Omegamin synth.")
+syn_Omegamin_cons = Portfolio(
+    weight_syn_Omegamin_cons, syn=True, name="Corr - Omegamin synth."
+)
 
 syn_Omegamin_cons.stackplts()
 
-syn_Omegamin_cons.correlation_plot(syn_Omegamin.compute_correlation_syn(rw_corr_sp),syn_Omegamin.compute_correlation_syn(rw_corr_bond))
+syn_Omegamin_cons.correlation_plot(
+    syn_Omegamin.compute_correlation_syn(rw_corr_sp),
+    syn_Omegamin.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_Omegamin_cons = syn_Omegamin_cons.compute_table()
 
@@ -3240,14 +3260,18 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamax optimization under const
 
 del i
 
-syn_Omegamax_cons = Portfolio(weight_syn_Omegamax_cons,syn =True, name= "Corr - Omegamax synth.")
+syn_Omegamax_cons = Portfolio(
+    weight_syn_Omegamax_cons, syn=True, name="Corr - Omegamax synth."
+)
 
 syn_Omegamax_cons.stackplts()
 
-syn_Omegamax_cons.correlation_plot(syn_Omegamax.compute_correlation_syn(rw_corr_sp),syn_Omegamax.compute_correlation_syn(rw_corr_bond))
+syn_Omegamax_cons.correlation_plot(
+    syn_Omegamax.compute_correlation_syn(rw_corr_sp),
+    syn_Omegamax.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_Omegamax_cons = syn_Omegamax_cons.compute_table()
-
 
 
 ###############################################################################
@@ -3418,17 +3442,17 @@ for i in tqdm(range(rw_number), desc="CVAR mint under constraint"):
 del i
 
 
-CVAR_mint_cons = Portfolio(weight_CVAR_mint_cons, name= "Corr & Mint - CVAR")
+CVAR_mint_cons = Portfolio(weight_CVAR_mint_cons, name="Corr & Mint - CVAR")
 
 CVAR_mint_cons.stackplts()
 
 CVAR_mint_cons.turnover_plot(CVAR.compute_turnover())
 
-CVAR_mint_cons.correlation_plot(CVAR.compute_correlation(rw_sp),CVAR.compute_correlation(rw_bond))
+CVAR_mint_cons.correlation_plot(
+    CVAR.compute_correlation(rw_sp), CVAR.compute_correlation(rw_bond)
+)
 
 t_CVAR_mint_cons = CVAR_mint_cons.compute_table()
-
-
 
 
 # Optimal CVAR:
@@ -3479,16 +3503,19 @@ for i in tqdm(range(rw_number), desc="CVAR risk mint optimization under constrai
 del i
 
 
-CVAR_risk_mint_cons = Portfolio(weight_CVAR_risk_mint_cons, name= "Corr & Mint - CVAR risk")
+CVAR_risk_mint_cons = Portfolio(
+    weight_CVAR_risk_mint_cons, name="Corr & Mint - CVAR risk"
+)
 
 CVAR_risk_mint_cons.stackplts()
 
 CVAR_risk_mint_cons.turnover_plot(CVAR_risk.compute_turnover())
 
-CVAR_risk_mint_cons.correlation_plot(CVAR_risk.compute_correlation(rw_sp),CVAR_risk.compute_correlation(rw_bond))
+CVAR_risk_mint_cons.correlation_plot(
+    CVAR_risk.compute_correlation(rw_sp), CVAR_risk.compute_correlation(rw_bond)
+)
 
 t_CVAR_risk_mint_cons = CVAR_risk_mint_cons.compute_table()
-
 
 
 ###############################################################################
@@ -3516,13 +3543,15 @@ for i in tqdm(range(rw_number), desc="CDAR mint optimization under constraint"):
 
 del i
 
-CDAR_mint_cons = Portfolio(weight_CDAR_mint_cons, name= "Corr & Mint - CDAR")
+CDAR_mint_cons = Portfolio(weight_CDAR_mint_cons, name="Corr & Mint - CDAR")
 
 CDAR_mint_cons.stackplts()
 
 CDAR_mint_cons.turnover_plot(CDAR.compute_turnover())
 
-CDAR_mint_cons.correlation_plot(CDAR.compute_correlation(rw_sp),CDAR.compute_correlation(rw_bond))
+CDAR_mint_cons.correlation_plot(
+    CDAR.compute_correlation(rw_sp), CDAR.compute_correlation(rw_bond)
+)
 
 t_CDAR_mint_cons = CDAR_mint_cons.compute_table()
 
@@ -3575,16 +3604,19 @@ for i in tqdm(range(rw_number), desc="CDAR risk mint optimization under constrai
 del i
 
 
-CDAR_risk_mint_cons = Portfolio(weight_CDAR_risk_mint_cons, name= "Corr & Mint - CDAR Risk")
+CDAR_risk_mint_cons = Portfolio(
+    weight_CDAR_risk_mint_cons, name="Corr & Mint - CDAR Risk"
+)
 
 CDAR_risk_mint_cons.stackplts()
 
 CDAR_risk_mint_cons.turnover_plot(CDAR_risk.compute_turnover())
 
-CDAR_risk_mint_cons.correlation_plot(CDAR_risk.compute_correlation(rw_sp),CDAR_risk.compute_correlation(rw_bond))
+CDAR_risk_mint_cons.correlation_plot(
+    CDAR_risk.compute_correlation(rw_sp), CDAR_risk.compute_correlation(rw_bond)
+)
 
 t_CDAR_risk_mint_cons = CDAR_risk_mint_cons.compute_table()
-
 
 
 ###############################################################################
@@ -3613,16 +3645,17 @@ for i in tqdm(range(rw_number), desc="Omegamin mint optimization under constrain
 del i
 
 
-Omegamin_mint_cons = Portfolio(weight_Omegamin_mint_cons, name= "Corr & Mint - Omegamin")
+Omegamin_mint_cons = Portfolio(weight_Omegamin_mint_cons, name="Corr & Mint - Omegamin")
 
 Omegamin_mint_cons.stackplts()
 
 Omegamin_mint_cons.turnover_plot(Omegamin.compute_turnover())
 
-Omegamin_mint_cons.correlation_plot(Omegamin.compute_correlation(rw_sp),Omegamin.compute_correlation(rw_bond))
+Omegamin_mint_cons.correlation_plot(
+    Omegamin.compute_correlation(rw_sp), Omegamin.compute_correlation(rw_bond)
+)
 
 t_Omegamin_mint_cons = Omegamin_mint_cons.compute_table()
-
 
 
 # Optimal Omega:
@@ -3673,16 +3706,17 @@ for i in tqdm(range(rw_number), desc="Omegamax mint optimization under constrain
 
 del i
 
-Omegamax_mint_cons = Portfolio(weight_Omegamax_mint_cons, name= "Corr & Mint - Omegamax")
+Omegamax_mint_cons = Portfolio(weight_Omegamax_mint_cons, name="Corr & Mint - Omegamax")
 
 Omegamax_mint_cons.stackplts()
 
 Omegamax_mint_cons.turnover_plot(Omegamax.compute_turnover())
 
-Omegamax_mint_cons.correlation_plot(Omegamax.compute_correlation(rw_sp),Omegamax.compute_correlation(rw_bond))
+Omegamax_mint_cons.correlation_plot(
+    Omegamax.compute_correlation(rw_sp), Omegamax.compute_correlation(rw_bond)
+)
 
 t_Omegamax_mint_cons = Omegamax_mint_cons.compute_table()
-
 
 
 ###############################################################################
@@ -3847,16 +3881,20 @@ for i in tqdm(
 
 del i
 
-syn_CVAR_mint_cons = Portfolio(weight_syn_CVAR_mint_cons, syn=True, name= "Corr & Mint - CVAR synth.")
+syn_CVAR_mint_cons = Portfolio(
+    weight_syn_CVAR_mint_cons, syn=True, name="Corr & Mint - CVAR synth."
+)
 
 syn_CVAR_mint_cons.stackplts()
 
 syn_CVAR_mint_cons.turnover_plot(syn_CVAR.compute_turnover())
 
-syn_CVAR_mint_cons.correlation_plot(syn_CVAR.compute_correlation_syn(rw_corr_sp),syn_CVAR.compute_correlation_syn(rw_corr_bond))
+syn_CVAR_mint_cons.correlation_plot(
+    syn_CVAR.compute_correlation_syn(rw_corr_sp),
+    syn_CVAR.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_CVAR_mint_cons = syn_CVAR_mint_cons.compute_table()
-
 
 
 # Optimal CVAR:
@@ -3909,16 +3947,20 @@ for i in tqdm(
 
 del i
 
-syn_CVAR_risk_mint_cons = Portfolio(weight_syn_CVAR_risk_mint_cons, syn=True, name= "Corr & Mint - CVAR Risk synth.")
+syn_CVAR_risk_mint_cons = Portfolio(
+    weight_syn_CVAR_risk_mint_cons, syn=True, name="Corr & Mint - CVAR Risk synth."
+)
 
 syn_CVAR_risk_mint_cons.stackplts()
 
 syn_CVAR_risk_mint_cons.turnover_plot(syn_CVAR_risk.compute_turnover())
 
-syn_CVAR_risk_mint_cons.correlation_plot(syn_CVAR_risk.compute_correlation_syn(rw_corr_sp),syn_CVAR_risk.compute_correlation_syn(rw_corr_bond))
+syn_CVAR_risk_mint_cons.correlation_plot(
+    syn_CVAR_risk.compute_correlation_syn(rw_corr_sp),
+    syn_CVAR_risk.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_CVAR_risk_mint_cons = syn_CVAR_risk_mint_cons.compute_table()
-
 
 
 ###############################################################################
@@ -3948,16 +3990,20 @@ for i in tqdm(
 
 del i
 
-syn_CDAR_mint_cons = Portfolio(weight_syn_CDAR_mint_cons, syn=True, name= "Corr & Mint - CDAR synth.")
+syn_CDAR_mint_cons = Portfolio(
+    weight_syn_CDAR_mint_cons, syn=True, name="Corr & Mint - CDAR synth."
+)
 
 syn_CDAR_mint_cons.stackplts()
 
 syn_CDAR_mint_cons.turnover_plot(syn_CDAR.compute_turnover())
 
-syn_CDAR_mint_cons.correlation_plot(syn_CDAR.compute_correlation_syn(rw_corr_sp),syn_CDAR.compute_correlation_syn(rw_corr_bond))
+syn_CDAR_mint_cons.correlation_plot(
+    syn_CDAR.compute_correlation_syn(rw_corr_sp),
+    syn_CDAR.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_CDAR_mint_cons = syn_CDAR_mint_cons.compute_table()
-
 
 
 # Optimal CDAR:
@@ -4010,13 +4056,18 @@ for i in tqdm(
 
 del i
 
-syn_CDAR_risk_mint_cons = Portfolio(weight_syn_CDAR_risk_mint_cons, syn=True, name= "Corr & Mint - CDAR Risk synth.")
+syn_CDAR_risk_mint_cons = Portfolio(
+    weight_syn_CDAR_risk_mint_cons, syn=True, name="Corr & Mint - CDAR Risk synth."
+)
 
 syn_CDAR_risk_mint_cons.stackplts()
 
 syn_CDAR_risk_mint_cons.turnover_plot(syn_CDAR_risk.compute_turnover())
 
-syn_CDAR_risk_mint_cons.correlation_plot(syn_CDAR_risk.compute_correlation_syn(rw_corr_sp),syn_CDAR_risk.compute_correlation_syn(rw_corr_bond))
+syn_CDAR_risk_mint_cons.correlation_plot(
+    syn_CDAR_risk.compute_correlation_syn(rw_corr_sp),
+    syn_CDAR_risk.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_CDAR_risk_mint_cons = syn_CDAR_risk_mint_cons.compute_table()
 
@@ -4048,16 +4099,20 @@ for i in tqdm(
 
 del i
 
-syn_Omegamin_mint_cons = Portfolio(weight_syn_Omegamin_mint_cons, syn=True, name= "Corr & Mint - Omegamin synth.")
+syn_Omegamin_mint_cons = Portfolio(
+    weight_syn_Omegamin_mint_cons, syn=True, name="Corr & Mint - Omegamin synth."
+)
 
 syn_Omegamin_mint_cons.stackplts()
 
 syn_Omegamin_mint_cons.turnover_plot(syn_Omegamin.compute_turnover())
 
-syn_Omegamin_mint_cons.correlation_plot(syn_Omegamin.compute_correlation_syn(rw_corr_sp),syn_Omegamin.compute_correlation_syn(rw_corr_bond))
+syn_Omegamin_mint_cons.correlation_plot(
+    syn_Omegamin.compute_correlation_syn(rw_corr_sp),
+    syn_Omegamin.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_Omegamin_mint_cons = syn_Omegamin_mint_cons.compute_table()
-
 
 
 # Optimal Omega:
@@ -4109,16 +4164,20 @@ for i in tqdm(
 
 del i
 
-syn_Omegamax_mint_cons = Portfolio(weight_syn_Omegamax_mint_cons, syn=True, name= "Corr & Mint - Omegamax synth.")
+syn_Omegamax_mint_cons = Portfolio(
+    weight_syn_Omegamax_mint_cons, syn=True, name="Corr & Mint - Omegamax synth."
+)
 
 syn_Omegamax_mint_cons.stackplts()
 
 syn_Omegamax_mint_cons.turnover_plot(syn_Omegamax.compute_turnover())
 
-syn_Omegamax_mint_cons.correlation_plot(syn_Omegamax.compute_correlation_syn(rw_corr_sp),syn_Omegamax.compute_correlation_syn(rw_corr_bond))
+syn_Omegamax_mint_cons.correlation_plot(
+    syn_Omegamax.compute_correlation_syn(rw_corr_sp),
+    syn_Omegamax.compute_correlation_syn(rw_corr_bond),
+)
 
 t_syn_Omegamax_mint_cons = syn_Omegamax_mint_cons.compute_table()
-
 
 
 ###############################################################################
