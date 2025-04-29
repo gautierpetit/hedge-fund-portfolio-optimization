@@ -36,7 +36,7 @@ import portfolios_functions as pf
 
 
 Price = pd.read_excel(
-    "Data/HFRI_full.xlsx", index_col=0, parse_dates=True, date_format="%b-%y"
+    "Data/HFRI_full.xlsx",sheet_name= "Data" ,index_col=0, parse_dates=True, date_format="%b-%y"
 )
 
 Benchmark = pd.read_excel(
@@ -1259,40 +1259,8 @@ aum_FoF = (
 ###############################################################################
 ###############################################################################
 
-# Weight here equal 0, used to get the performance table,
-weight_FoF = [0] * rw_number
-
-for i in range(rw_number):
-    weight_FoF[i] = pd.DataFrame(
-        data=[0] * len(rw_returns[i].T),
-        columns=Returns.iloc[i + rw : i + rw + 1].index,
-        index=rw_returns[i].columns,
-    )
-
-
-
-
-
-
-
-t_FoF = performance_measures(weight_FoF, aum_FoF, bench.iloc[rw:], np.array(0), False).T
-t_FoF["Corr. Stocks"] = (
-    pd.concat([bench.iloc[rw:], bench_returns["SPX - Adj Close"].iloc[rw:]], axis=1)
-    .corr()
-    .iloc[0][1]
-)
-t_FoF["Corr. Bonds"] = (
-    pd.concat(
-        [
-            bench.iloc[rw:],
-            bench_returns[" ICE BofA US Corporate Index Total Return"].iloc[rw:],
-        ],
-        axis=1,
-    )
-    .corr()
-    .iloc[0][1]
-)
-t_FoF = pd.DataFrame(t_FoF, columns=["FoF"])
+t_FoF = pd.read_excel(
+    "Data/HFRI_full.xlsx",sheet_name= "FoF" ,index_col=0)
 
 # Equally weighted portfolio
 

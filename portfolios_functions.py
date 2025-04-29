@@ -24,10 +24,10 @@ Riskfree.columns = ["DGS10"]
 Riskfree = Riskfree.astype(float)
 Riskfree.index = pd.to_datetime(Riskfree.index, format="%Y-%m-%d %H:%M:%S")
 Riskfree = Riskfree / 100
-
+Rf_mean = Riskfree.mean().iloc[0]
 # we get the average monthly risk free rate from the average annualized 10y T-bill rate
 
-rf = float((Riskfree.mean() + 1) ** (1 / 12) - 1)
+rf = (Rf_mean + 1) ** (1 / 12) - 1
 
 
 
