@@ -26,17 +26,6 @@ from sklearn.linear_model import LinearRegression
 import portfolios_functions as pf
 
 
-
-
-
-
-
-# Portfolio-class branch test git
-
-
-
-
-
 ###############################################################################
 
 
@@ -47,7 +36,11 @@ import portfolios_functions as pf
 
 
 Price = pd.read_excel(
-    "Data/HFRI_full.xlsx", index_col=0, parse_dates=True, date_format="%b-%y"
+    "Data/HFRI_full.xlsx",
+    sheet_name="Data",
+    index_col=0,
+    parse_dates=True,
+    date_format="%b-%y",
 )
 
 Benchmark = pd.read_excel(
@@ -123,39 +116,22 @@ Price.drop(columns=["Fund of Funds Composite"], inplace=True)
 ###############################################################################
 ###############################################################################
 
-
 # --- Annualized Mean Return ---
 Returns_mean = (1 + Returns.mean()) ** (12) - 1
-
-
 # --- Annualized Median Return ---
 Returns_med = (1 + Returns.median()) ** (12) - 1
-
-
 # --- Annualized Volatility ---
 Returns_vola = Returns.std() * np.sqrt(12)
-
-
 # --- Annualized Semi Volatility ---
 Returns_semivola = Returns[Returns < 0].std() * np.sqrt(12)
-
-
 # --- Minimum monthly return ---
 Returns_min = Returns.min()
-
-
 # --- Maximum monthly return---
 Returns_max = Returns.max()
-
-
 # --- Skewness ---
 Returns_skew = Returns.skew()
-
-
 # --- Excess Kurtosis ---
 Returns_kurt = Returns.kurt() - 3
-
-
 # ---- Correlation tables ----
 Returns_corr = Returns.corr()
 
@@ -388,6 +364,7 @@ plt.autoscale(tight="x")
 plt.ylabel("Index returns")
 plt.xlabel("Time")
 plt.savefig("Returns.png")
+plt.close()
 
 Price.plot(figsize=(16, 9))
 plt.autoscale(tight="x")
@@ -397,6 +374,7 @@ plt.ylim(0, 30000)
 plt.legend(Price.columns, loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=5)
 plt.title("Prices of of HFRI indices")
 plt.savefig("Price.png")
+plt.close()
 
 
 ###############################################################################
@@ -813,324 +791,6 @@ del i
 ###############################################################################
 
 
-#                           Function definition                               #
-
-
-###############################################################################
-
-# Definition of functions:
-
-
-def portfolio_aum(weight):
-    """
-    Computes portfolio value based on Returns Dataframe
-    """
-
-    aum = pd.Series(
-        data=[100] * (len(weight) + 1),
-        index=Returns.iloc[rw - 1 :].index,
-        name="AUM",
-        dtype=float,
-    )
-
-    for i, w in enumerate(weight):
-
-        columns_idx = Returns.columns.get_indexer(rw_returns[i].columns)
-
-        returns_row = Returns.iloc[rw + i, columns_idx]
-
-        aum.iloc[i + 1] = (1 + w.T @ returns_row) * aum.iloc[i]
-
-    return aum
-
-
-def portfolio_return(weight):
-    """
-    Computes portfolio returns based on Returns Dataframe
-    """
-
-    returns = pd.Series(
-        data=[0] * (len(weight) + 1),
-        index=Returns.iloc[rw - 1 :].index,
-        name="Return",
-        dtype=float,
-    )
-
-    for i, w in enumerate(weight):
-
-        columns_idx = Returns.columns.get_indexer(rw_returns[i].columns)
-
-        returns_row = Returns.iloc[rw + i, columns_idx]
-
-        returns.iloc[i + 1] = w.T @ returns_row
-
-    return returns
-
-
-def turnover(weight):
-    """
-    Computes portfolio turnover with absolute change in weights
-    """
-    to = pd.Series(
-        data=[0] * len(weight),
-        index=Returns.iloc[rw:].index,
-        name="Turnover",
-        dtype=float,
-    )
-
-    for i in range(len(weight) - 1):
-
-        columns_idx = Returns.columns.get_indexer(rw_returns[i].columns)
-
-        returns_row = Returns.iloc[rw + i, columns_idx]
-
-        w1 = weight[i + 1].squeeze().values
-        w0 = (weight[i].squeeze() * (1 + returns_row)).values
-
-        length_diff = len(w1) - len(w0)
-
-        if length_diff > 0:
-            w0 = np.pad(w0, (0, length_diff), mode="constant")
-
-        to.iloc[i + 1] = abs(w1 - w0).sum()
-
-    return to
-
-
-def portfolio_aum_tc(weight, to, tc):
-    """
-    Computes portfolio value with trading costs based on Returns Dataframe
-    """
-
-    aum_tc = pd.Series(
-        data=[100] * (len(weight) + 1),
-        index=Returns.iloc[rw - 1 :].index,
-        name="AUM",
-        dtype=float,
-    )
-
-    for i, w in enumerate(weight):
-
-        columns_idx = Returns.columns.get_indexer(rw_returns[i].columns)
-
-        returns_row = Returns.iloc[rw + i, columns_idx]
-
-        net_return = (w.T @ returns_row) - to.iloc[i] * tc
-
-        aum_tc.iloc[i + 1] = (1 + net_return) * aum_tc.iloc[i]
-
-    return aum_tc
-
-
-def portfolio_return_tc(weight, to, tc):
-    """
-    Computes portfolio returns based on Returns Dataframe
-    """
-
-    returns = pd.Series(
-        data=[0] * (len(weight) + 1),
-        index=Returns.iloc[rw - 1 :].index,
-        name="Return",
-        dtype=float,
-    )
-
-    for i, w in enumerate(weight):
-
-        columns_idx = Returns.columns.get_indexer(rw_returns[i].columns)
-
-        returns_row = Returns.iloc[rw + i, columns_idx]
-
-        returns.iloc[i + 1] = (w.T @ returns_row) - to.iloc[i] * tc
-
-    return returns
-
-
-def portfolio_correlation(weight, corr):
-    """
-    Computes the correlation of a portfolio based on the correlation of its individual assets
-    """
-
-    correl = pd.Series(
-        data=[np.nan] * rw_number,
-        index=Returns.iloc[rw : rw + rw_number].index,
-        name="Correlation",
-        dtype=float,
-    )
-
-    for i in range(rw_number):
-        correl.iloc[i] = weight[i].mul(corr[i], axis=0).sum()
-
-    return correl
-
-
-def portfolio_syn_correlation(weight, corr):
-    """
-    Computes the synthetic correlation of a portfolio based on the correlation of its individual assets
-    """
-
-    correl = pd.Series(
-        data=[np.nan] * rw_corr_number,
-        index=Returns.iloc[rw + 1 : rw + rw_corr_number + 1].index,
-        name="Syn_Correlation",
-        dtype=float,
-    )
-
-    for i in range(rw_corr_number):
-        correl.iloc[i] = weight[i].mul(corr[i], axis=0).sum()
-
-    return correl
-
-
-# FIXME: Default transaction cost 30bps
-def portfolio(weight, tc=0.003):
-    """
-    Outputs portfolio value, return, turnover, value with transaction cost, returns with transaction costs, correlation of the portfolio to S&P500, correlation of the portfolio to bond index. Output is individual Series.
-    """
-    aum = portfolio_aum(weight)
-
-    returns = portfolio_return(weight)
-
-    to = turnover(weight)
-
-    aum_tc = portfolio_aum_tc(weight, to, tc)
-
-    returns_tc = portfolio_return_tc(weight, to, tc)
-
-    correl_sp = portfolio_correlation(weight, rw_sp)
-    correl_bond = portfolio_correlation(weight, rw_bond)
-
-    return aum, returns, to, aum_tc, returns_tc, correl_sp, correl_bond
-
-
-# FIXME: Default transaction cost 30bps
-def portfolio_syn(weight_syn, tc=0.003):
-    """
-    Outputs portfolio value, return, turnover, value with trading cost, returns with trading costs, correlation of the portfolio to S&P500, correlation of the portfolio to bond index. Output is individual Series.
-    """
-    aum = portfolio_aum(weight_syn)
-
-    returns = portfolio_return(weight_syn)
-
-    to = turnover(weight_syn)
-
-    aum_tc = portfolio_aum_tc(weight_syn, to, tc)
-
-    returns_tc = portfolio_return_tc(weight_syn, to, tc)
-
-    correl_sp = portfolio_syn_correlation(weight_syn, rw_corr_sp)
-    correl_bond = portfolio_syn_correlation(weight_syn, rw_corr_bond)
-
-    return aum, returns, to, aum_tc, returns_tc, correl_sp, correl_bond
-
-
-###############################################################################
-
-# Graphical function usefull  to observe the impact of cost minimization on turnover, the constraint on correlation and the weight allocation
-
-###############################################################################
-
-
-def turnover_plot(to_mint, to):
-    """
-    Outputs a graph plotting comparison between portfolios with and without costs minimization
-    """
-    var_name = str([name for name, value in globals().items() if value is to_mint][0])
-
-    # Create a new figure and axes for each plot
-    fig, ax = plt.subplots(figsize=(16, 9))
-
-    to.plot(
-        kind="area",
-        legend=None,
-        ax=ax,
-        color="tab:blue",
-        label="No minimization: Total To: " + str(round(to.sum(), 2)),
-    )
-    to_mint.plot(
-        kind="area",
-        ax=ax,
-        color="tab:red",
-        label="With minimization: Total To: " + str(round(to_mint.sum(), 2)),
-    )
-    plt.title(
-        "Turnover comparison between portfolios with and without costs minimization "
-    )
-    plt.legend(
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.06),
-        ncol=2,
-    )
-    plt.autoscale(tight="x")
-    plt.ylim(0, 2)
-    plt.ylabel("Turnover")
-    plt.xlabel("Time")
-    plt.savefig("Turnover/" + var_name + "_costs.png")
-
-
-def correlation_plot(corrsp_cons, corrbond_cons, corrsp, corrbond):
-    """
-    Outputs a graph plotting correlation of a portfolio to the S&P and bond index overtime
-    """
-    var_name = str([name for name, value in globals().items() if value is corrsp][0])
-
-    # Create a new figure and axes for each plot
-    fig, ax = plt.subplots(figsize=(16, 9))
-
-    corrsp_cons.plot(legend=None, ax=ax, color="tab:blue", linestyle="--")
-    corrbond_cons.plot(ax=ax, color="tab:red", linestyle="--")
-    corrsp.plot(ax=ax, color="tab:blue", linestyle="dotted")
-    corrbond.plot(ax=ax, color="tab:red", linestyle="dotted")
-
-    plt.title("Portoflio correlation to the stock and bond index over time")
-    plt.legend(
-        [
-            "S&P constrained",
-            "Bond constrained",
-            "S&P unconstrained",
-            "Bond unconstrained",
-        ],
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.06),
-        ncol=2,
-    )
-    plt.autoscale(tight="x")
-    plt.xlabel("Time")
-    plt.ylabel("Correlation")
-    plt.ylim(-1, 1)
-    plt.savefig("Correlation/" + var_name + "_correlations.png")
-
-
-def stackplts(weights):
-    data = pd.DataFrame(columns=Returns.columns, dtype=float)
-    var_name = str([name for name, value in globals().items() if value is weights][0])
-
-    for i in range(len(weights)):
-        data = pd.concat([data, weights[i].T])
-
-    fig, ax = plt.subplots(figsize=(16, 9))
-    ax.stackplot(
-        data.index,
-        [data[col].fillna(0) for col in Returns.columns],
-        labels=Returns.columns,
-        colors=sns.color_palette("pastel", 15),
-        baseline="zero",
-    )
-    ax.legend(
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.06),
-        ncol=5,
-    )
-    ax.set_ylabel("Percentage ")
-    ax.autoscale(tight="x")
-    ax.set_xlabel("Time")
-    ax.set_ylim(0, 1)
-    ax.set_title("Weight allocation of the portfolio over time")
-    fig.savefig("Stackplots/" + var_name + ".png")
-
-
-###############################################################################
-
-
 #   Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity     #
 
 
@@ -1149,19 +809,13 @@ Riskfree.columns = ["DGS10"]
 Riskfree = Riskfree.astype(float)
 Riskfree.index = pd.to_datetime(Riskfree.index, format="%Y-%m-%d %H:%M:%S")
 Riskfree = Riskfree / 100
-
+Rf_mean = Riskfree.mean().iloc[0]
 # we get the average monthly risk free rate from the average annualized 10y T-bill rate
 
-rf = float((Riskfree.mean() + 1) ** (1 / 12) - 1)
-
-###############################################################################
-###############################################################################
-
-#                    Functions for performance computation                    #
-
-###############################################################################
+rf = (Rf_mean + 1) ** (1 / 12) - 1
 
 
+# Get Fund of Fund index returns and get them to proper size to work with rw
 bench = (
     Benchmark1["Fund of Funds Composite"]
     / Benchmark1["Fund of Funds Composite"].shift(1)
@@ -1177,153 +831,6 @@ aum_FoF = (
 )
 
 
-def information_ratio(returns, benchmark_returns):
-    """
-    Calculate the Information Ratio of returns relative to a benchmark.
-
-    """
-
-    excess_returns = returns - benchmark_returns
-    average_excess_return = np.mean(excess_returns)
-    tracking_error = np.std(excess_returns, ddof=1)
-
-    information_ratio = average_excess_return / tracking_error
-
-    return information_ratio
-
-
-def max_drawdown(returns):
-    """
-    Compute the maximum drawdown of returns.
-
-    """
-
-    n = len(returns)
-    peak = returns[0]
-    max_drawdown = 0.0
-
-    for i in range(1, n):
-        if returns[i] > peak:
-            peak = returns[i]
-        else:
-            drawdown = (peak - returns[i]) / peak
-            if drawdown > max_drawdown:
-                max_drawdown = drawdown
-
-    return max_drawdown
-
-
-def r_squared(returns, index_returns):
-    """
-    Calculate the R-squared of returns with respect to an index.
-    """
-    # Reshape input data if necessary
-    returns = np.array(returns).reshape(-1, 1)
-
-    index_returns = np.array(index_returns).reshape(-1, 1)
-
-    # Fit linear regression model
-    model = LinearRegression()
-    model.fit(index_returns, returns)
-
-    # Calculate R-squared value
-    r_squared = model.score(index_returns, returns)
-
-    return r_squared
-
-
-def performance_measures(weight, aum, returns, to, syn=False):
-    """
-    Computes performance measures and creates a pandas Series
-
-    """
-
-    AR = (1 + returns.mean()) ** (12) - 1
-    SD = returns.std() * np.sqrt(12)
-    MDD = max_drawdown(aum)
-    CVaR = pf.cvar(returns, 0.01)
-    CDaR = pf.cdar(returns, 0.01)
-    SR = (AR - float(Riskfree.mean())) / SD
-    M_squared = float(Riskfree.mean()) + SR * bench.iloc[rw:].std() * np.sqrt(12)
-    Calmar = (AR - float(Riskfree.mean())) / MDD
-
-    if syn == True:
-        R_squared = r_squared(returns, returns_syn_bench)
-        CORR_SP = portfolio_syn_correlation(weight, rw_corr_sp).mean()
-        CORR_BOND = portfolio_syn_correlation(weight, rw_corr_bond).mean()
-        CORR_bench = returns.corr(bench.iloc[rw + 1 :])
-    else:
-        R_squared = r_squared(returns, returns_bench)
-        CORR_SP = portfolio_correlation(weight, rw_sp).mean()
-        CORR_BOND = portfolio_correlation(weight, rw_bond).mean()
-        CORR_bench = returns.corr(bench.iloc[rw:])
-    PT = to.sum()
-
-    table = pd.Series(
-        data=[
-            AR,
-            M_squared,
-            SD,
-            MDD,
-            CVaR,
-            CDaR,
-            SR,
-            Calmar,
-            R_squared,
-            CORR_SP,
-            CORR_BOND,
-            CORR_bench,
-            PT,
-        ],
-        index=[
-            "Return",
-            "M squared",
-            "Volatility",
-            "MDD",
-            "CVaR",
-            "CDaR",
-            "Sharpe",
-            "Calmar",
-            "R squared",
-            "Corr. Stocks",
-            "Corr. Bonds",
-            "Corr. FoF",
-            "Turnover",
-        ],
-    )
-
-    return table
-
-
-# Weight here equal 0, used to get the performance table,
-weight_FoF = [0] * rw_number
-
-for i in range(rw_number):
-    weight_FoF[i] = pd.DataFrame(
-        data=[0] * len(rw_returns[i].T),
-        columns=Returns.iloc[i + rw : i + rw + 1].index,
-        index=rw_returns[i].columns,
-    )
-
-
-t_FoF = performance_measures(weight_FoF, aum_FoF, bench.iloc[rw:], np.array(0), False).T
-t_FoF["Corr. Stocks"] = (
-    pd.concat([bench.iloc[rw:], bench_returns["SPX - Adj Close"].iloc[rw:]], axis=1)
-    .corr()
-    .iloc[0][1]
-)
-t_FoF["Corr. Bonds"] = (
-    pd.concat(
-        [
-            bench.iloc[rw:],
-            bench_returns[" ICE BofA US Corporate Index Total Return"].iloc[rw:],
-        ],
-        axis=1,
-    )
-    .corr()
-    .iloc[0][1]
-)
-t_FoF = pd.DataFrame(t_FoF, columns=["FoF"])
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -1337,6 +844,23 @@ t_FoF = pd.DataFrame(t_FoF, columns=["FoF"])
 ###############################################################################
 ###############################################################################
 
+data = pf.PortfolioData(
+    Returns,
+    rw,
+    rw_returns,
+    rw_number,
+    rw_corr_number,
+    rw_sp,
+    rw_bond,
+    rw_corr_sp,
+    rw_corr_bond,
+    bench,
+    returns_bench,
+    returns_syn_bench,
+)
+
+
+t_FoF = pd.read_excel("Data/HFRI_full.xlsx", sheet_name="FoF", index_col=0)
 
 # Equally weighted portfolio
 
@@ -1352,22 +876,9 @@ for i in tqdm(range(rw_number), desc="EW optimization"):
 
 del i
 
-
-aum_EW, returns_EW, to_EW, aum_EW_tc, returns_EW_tc, corrsp_EW, corrbond_EW = portfolio(
-    weight_EW
-)
-
-stackplts(weight_EW)
-
-t_EW = pd.concat(
-    [
-        performance_measures(weight_EW, aum_EW, returns_EW, to_EW, False),
-        performance_measures(weight_EW, aum_EW_tc, returns_EW_tc, to_EW, False),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_EW.columns = ["EW - No costs", "EW - With costs"]
+EW = pf.Portfolio(weight_EW, data, name="EW")
+EW.stackplts()
+t_EW = EW.compute_table()
 
 ###############################################################################
 
@@ -1384,29 +895,9 @@ for i in tqdm(range(rw_number), desc="MVP optimization"):
 
 del i
 
-
-(
-    aum_MVP,
-    returns_MVP,
-    to_MVP,
-    aum_MVP_tc,
-    returns_MVP_tc,
-    corrsp_MVP,
-    corrbond_MVP,
-) = portfolio(weight_MVP)
-
-stackplts(weight_MVP)
-
-
-t_MVP = pd.concat(
-    [
-        performance_measures(weight_MVP, aum_MVP, returns_MVP, to_MVP, False),
-        performance_measures(weight_MVP, aum_MVP_tc, returns_MVP_tc, to_MVP, False),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_MVP.columns = ["MVP - No costs", "MVP - With costs"]
+MVP = pf.Portfolio(weight_MVP, data, name="MVP")
+MVP.stackplts()
+t_MVP = MVP.compute_table()
 
 ###############################################################################
 
@@ -1423,32 +914,11 @@ for i in tqdm(range(rw_number), desc="MSR optimization"):
 
 del i
 
-
-(
-    aum_MSR,
-    returns_MSR,
-    to_MSR,
-    aum_MSR_tc,
-    returns_MSR_tc,
-    corrsp_MSR,
-    corrbond_MSR,
-) = portfolio(weight_MSR)
-
-stackplts(weight_MSR)
-
-t_MSR = pd.concat(
-    [
-        performance_measures(weight_MSR, aum_MSR, returns_MSR, to_MSR, False),
-        performance_measures(weight_MSR, aum_MSR_tc, returns_MSR_tc, to_MSR, False),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_MSR.columns = ["MSR - No costs", "MSR - With costs"]
-
+MSR = pf.Portfolio(weight_MSR, data, name="MSR")
+MSR.stackplts()
+t_MSR = MSR.compute_table()
 
 ###############################################################################
-
 
 t_bench = pd.concat(
     [
@@ -1460,19 +930,17 @@ t_bench = pd.concat(
     axis=1,
     ignore_index=False,
 )
-with pd.ExcelWriter("Performance Measures.xlsx") as writer:
-    t_bench.to_excel(writer, sheet_name="Benchmark")
 
 
 sns_plot = plt.figure(figsize=(16, 9))
 plt.title("Benchmark Portfolio Wealth (base level=100)")
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW, linestyle=(0, (1, 1)), color="black")
-sns.lineplot(data=aum_EW_tc, linestyle=(0, (1, 1)), color="dimgrey")
-sns.lineplot(data=aum_MVP, linestyle=(0, (5, 5)), color="black")
-sns.lineplot(data=aum_MVP_tc, linestyle=(0, (5, 5)), color="dimgrey")
-sns.lineplot(data=aum_MSR, linestyle=(0, (5, 1)), color="black")
-sns.lineplot(data=aum_MSR_tc, linestyle=(0, (5, 1)), color="dimgrey")
+sns.lineplot(data=EW.compute_aum(), linestyle=(0, (1, 1)), color="black")
+sns.lineplot(data=EW.compute_aum_tc(), linestyle=(0, (1, 1)), color="dimgrey")
+sns.lineplot(data=MVP.compute_aum(), linestyle=(0, (5, 5)), color="black")
+sns.lineplot(data=MVP.compute_aum_tc(), linestyle=(0, (5, 5)), color="dimgrey")
+sns.lineplot(data=MSR.compute_aum(), linestyle=(0, (5, 1)), color="black")
+sns.lineplot(data=MSR.compute_aum_tc(), linestyle=(0, (5, 1)), color="dimgrey")
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -1492,6 +960,7 @@ plt.legend(
     ncol=4,
 )
 plt.savefig("Benchmark.png")
+plt.close()
 
 
 ###############################################################################
@@ -1545,29 +1014,9 @@ for i in tqdm(range(rw_number), desc="CVAR optimization"):
 
 del i
 
-
-(
-    aum_CVAR,
-    returns_CVAR,
-    to_CVAR,
-    aum_CVAR_tc,
-    returns_CVAR_tc,
-    corrsp_CVAR,
-    corrbond_CVAR,
-) = portfolio(weight_CVAR)
-
-stackplts(weight_CVAR)
-
-t_CVAR = pd.concat(
-    [
-        performance_measures(weight_CVAR, aum_CVAR, returns_CVAR, to_CVAR, False),
-        performance_measures(weight_CVAR, aum_CVAR_tc, returns_CVAR_tc, to_CVAR, False),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CVAR.columns = ["CVAR - No costs", "CVAR - With costs"]
-
+CVAR = pf.Portfolio(weight_CVAR, data, name="CVAR")
+CVAR.stackplts()
+t_CVAR = CVAR.compute_table()
 
 # Optimal CVAR:
 
@@ -1582,38 +1031,9 @@ for i in tqdm(range(rw_number), desc="CVAR risk optimization"):
 
 del i
 
-
-(
-    aum_CVAR_risk,
-    returns_CVAR_risk,
-    to_CVAR_risk,
-    aum_CVAR_risk_tc,
-    returns_CVAR_risk_tc,
-    corrsp_CVAR_risk,
-    corrbond_CVAR_risk,
-) = portfolio(weight_CVAR_risk)
-
-stackplts(weight_CVAR_risk)
-
-
-t_CVAR_risk = pd.concat(
-    [
-        performance_measures(
-            weight_CVAR_risk, aum_CVAR_risk, returns_CVAR_risk, to_CVAR_risk, False
-        ),
-        performance_measures(
-            weight_CVAR_risk,
-            aum_CVAR_risk_tc,
-            returns_CVAR_risk_tc,
-            to_CVAR_risk,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CVAR_risk.columns = ["CVAR risk - No costs", "CVAR risk - With costs"]
-
+CVAR_risk = pf.Portfolio(weight_CVAR_risk, data, name="CVAR risk")
+CVAR_risk.stackplts()
+t_CVAR_risk = CVAR_risk.compute_table()
 
 ###############################################################################
 
@@ -1631,28 +1051,9 @@ for i in tqdm(range(rw_number), desc="CDAR optimization"):
 del i
 
 
-(
-    aum_CDAR,
-    returns_CDAR,
-    to_CDAR,
-    aum_CDAR_tc,
-    returns_CDAR_tc,
-    corrsp_CDAR,
-    corrbond_CDAR,
-) = portfolio(weight_CDAR)
-
-stackplts(weight_CDAR)
-
-t_CDAR = pd.concat(
-    [
-        performance_measures(weight_CDAR, aum_CDAR, returns_CDAR, to_CDAR, False),
-        performance_measures(weight_CDAR, aum_CDAR_tc, returns_CDAR_tc, to_CDAR, False),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CDAR.columns = ["CDAR - No costs", "CDAR - With costs"]
-
+CDAR = pf.Portfolio(weight_CDAR, data, name="CDAR")
+CDAR.stackplts()
+t_CDAR = CDAR.compute_table()
 
 # Optimal CDAR:
 
@@ -1667,40 +1068,11 @@ for i in tqdm(range(rw_number), desc="CDAR risk optimization"):
 
 del i
 
-
-(
-    aum_CDAR_risk,
-    returns_CDAR_risk,
-    to_CDAR_risk,
-    aum_CDAR_risk_tc,
-    returns_CDAR_risk_tc,
-    corrsp_CDAR_risk,
-    corrbond_CDAR_risk,
-) = portfolio(weight_CDAR_risk)
-
-stackplts(weight_CDAR_risk)
-
-t_CDAR_risk = pd.concat(
-    [
-        performance_measures(
-            weight_CDAR_risk, aum_CDAR_risk, returns_CDAR_risk, to_CDAR_risk, False
-        ),
-        performance_measures(
-            weight_CDAR_risk,
-            aum_CDAR_risk_tc,
-            returns_CDAR_risk_tc,
-            to_CDAR_risk,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CDAR_risk.columns = ["CDAR risk - No costs", "CDAR risk - With costs"]
-
+CDAR_risk = pf.Portfolio(weight_CDAR_risk, data, name="CDAR risk")
+CDAR_risk.stackplts()
+t_CDAR_risk = CDAR_risk.compute_table()
 
 ###############################################################################
-
 
 # Minimum risk Omega:
 
@@ -1715,33 +1087,9 @@ for i in tqdm(range(rw_number), desc="Omegamin optimization"):
 
 del i
 
-
-(
-    aum_Omegamin,
-    returns_Omegamin,
-    to_Omegamin,
-    aum_Omegamin_tc,
-    returns_Omegamin_tc,
-    corrsp_Omegamin,
-    corrbond_Omegamin,
-) = portfolio(weight_Omegamin)
-
-stackplts(weight_Omegamin)
-
-t_Omegamin = pd.concat(
-    [
-        performance_measures(
-            weight_Omegamin, aum_Omegamin, returns_Omegamin, to_Omegamin, False
-        ),
-        performance_measures(
-            weight_Omegamin, aum_Omegamin_tc, returns_Omegamin_tc, to_Omegamin, False
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_Omegamin.columns = ["Omega denum. - No costs", "Omega denum. - With costs"]
-
+Omegamin = pf.Portfolio(weight_Omegamin, data, name="Omega denum.")
+Omegamin.stackplts()
+t_Omegamin = Omegamin.compute_table()
 
 # Optimal Omega:
 
@@ -1756,33 +1104,9 @@ for i in tqdm(range(rw_number), desc="Omegamax optimization"):
 
 del i
 
-
-(
-    aum_Omegamax,
-    returns_Omegamax,
-    to_Omegamax,
-    aum_Omegamax_tc,
-    returns_Omegamax_tc,
-    corrsp_Omegamax,
-    corrbond_Omegamax,
-) = portfolio(weight_Omegamax)
-
-stackplts(weight_Omegamax)
-
-t_Omegamax = pd.concat(
-    [
-        performance_measures(
-            weight_Omegamax, aum_Omegamax, returns_Omegamax, to_Omegamax, False
-        ),
-        performance_measures(
-            weight_Omegamax, aum_Omegamax_tc, returns_Omegamax_tc, to_Omegamax, False
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_Omegamax.columns = ["Omega ratio - No costs", "Omega ratio - With costs"]
-
+Omegamax = pf.Portfolio(weight_Omegamax, data, name="Omega ratio")
+Omegamax.stackplts()
+t_Omegamax = Omegamax.compute_table()
 
 ###############################################################################
 
@@ -1804,6 +1128,7 @@ t_historical_P1 = pd.concat(
     axis=1,
     ignore_index=False,
 )
+
 t_historical_P1.columns = [
     "FoF",
     "EW",
@@ -1826,9 +1151,6 @@ t_historical_P1.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter("Performance Measures.xlsx") as writer:
-    t_historical_P1.to_excel(writer, sheet_name="P1 - Historical")
-
 
 # With costs:
 
@@ -1836,15 +1158,15 @@ sns.set_palette("tab10")
 sns_plot = plt.figure(figsize=(16, 9))
 plt.title("Portfolio computed using historical returns with costs (base level=100)")
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW_tc, linestyle=(0, (1, 1)), color="dimgrey")
-sns.lineplot(data=aum_MVP_tc, linestyle=(0, (5, 5)), color="dimgrey")
-sns.lineplot(data=aum_MSR_tc, linestyle=(0, (5, 1)), color="dimgrey")
-sns.lineplot(data=aum_CVAR_tc)
-sns.lineplot(data=aum_CVAR_risk_tc)
-sns.lineplot(data=aum_CDAR_tc)
-sns.lineplot(data=aum_CDAR_risk_tc)
-sns.lineplot(data=aum_Omegamin_tc)
-sns.lineplot(data=aum_Omegamax_tc)
+sns.lineplot(data=EW.compute_aum_tc(), linestyle=(0, (1, 1)), color="dimgrey")
+sns.lineplot(data=MVP.compute_aum_tc(), linestyle=(0, (5, 5)), color="dimgrey")
+sns.lineplot(data=MSR.compute_aum_tc(), linestyle=(0, (5, 1)), color="dimgrey")
+sns.lineplot(data=CVAR.compute_aum_tc())
+sns.lineplot(data=CVAR_risk.compute_aum_tc())
+sns.lineplot(data=CDAR.compute_aum_tc())
+sns.lineplot(data=CDAR_risk.compute_aum_tc())
+sns.lineplot(data=Omegamin.compute_aum_tc())
+sns.lineplot(data=Omegamax.compute_aum_tc())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -1866,7 +1188,8 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P1.png")
+plt.savefig("historical_P1_costs.png")
+plt.close()
 
 
 # Without costs:
@@ -1875,15 +1198,15 @@ sns.set_palette("tab10")
 sns_plot = plt.figure(figsize=(16, 9))
 plt.title("Portfolio computed using historical returns without costs (base level=100)")
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW, linestyle=(0, (1, 1)), color="black")
-sns.lineplot(data=aum_MVP, linestyle=(0, (5, 5)), color="black")
-sns.lineplot(data=aum_MSR, linestyle=(0, (5, 1)), color="black")
-sns.lineplot(data=aum_CVAR)
-sns.lineplot(data=aum_CVAR_risk)
-sns.lineplot(data=aum_CDAR)
-sns.lineplot(data=aum_CDAR_risk)
-sns.lineplot(data=aum_Omegamin)
-sns.lineplot(data=aum_Omegamax)
+sns.lineplot(data=EW.compute_aum(), linestyle=(0, (1, 1)), color="black")
+sns.lineplot(data=MVP.compute_aum(), linestyle=(0, (5, 5)), color="black")
+sns.lineplot(data=MSR.compute_aum(), linestyle=(0, (5, 1)), color="black")
+sns.lineplot(data=CVAR.compute_aum())
+sns.lineplot(data=CVAR_risk.compute_aum())
+sns.lineplot(data=CDAR.compute_aum())
+sns.lineplot(data=CDAR_risk.compute_aum())
+sns.lineplot(data=Omegamin.compute_aum())
+sns.lineplot(data=Omegamax.compute_aum())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -1906,7 +1229,7 @@ plt.legend(
     ncol=5,
 )
 plt.savefig("historical_P1.png")
-
+plt.close()
 
 ###############################################################################
 
@@ -1915,7 +1238,6 @@ plt.savefig("historical_P1.png")
 
 
 ###############################################################################
-
 
 # Minimum risk CVAR
 
@@ -1930,33 +1252,9 @@ for i in tqdm(range(rw_corr_number), desc="syn CVAR optimization"):
 
 del i
 
-
-(
-    aum_syn_CVAR,
-    returns_syn_CVAR,
-    to_syn_CVAR,
-    aum_syn_CVAR_tc,
-    returns_syn_CVAR_tc,
-    corrsp_syn_CVAR,
-    corrbond_syn_CVAR,
-) = portfolio_syn(weight_syn_CVAR)
-
-stackplts(weight_syn_CVAR)
-
-t_syn_CVAR = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CVAR, aum_syn_CVAR, returns_syn_CVAR, to_syn_CVAR, True
-        ),
-        performance_measures(
-            weight_syn_CVAR, aum_syn_CVAR_tc, returns_syn_CVAR_tc, to_syn_CVAR, True
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_syn_CVAR.columns = ["CVAR synth. - No costs", "CVAR synth. - With costs"]
-
+syn_CVAR = pf.Portfolio(weight_syn_CVAR, data, syn=True, name="CVAR synth.")
+syn_CVAR.stackplts()
+t_syn_CVAR = syn_CVAR.compute_table()
 
 # Optimal CVAR:
 
@@ -1971,48 +1269,13 @@ for i in tqdm(range(rw_corr_number), desc="syn CVAR risk optimization"):
 
 del i
 
-
-(
-    aum_syn_CVAR_risk,
-    returns_syn_CVAR_risk,
-    to_syn_CVAR_risk,
-    aum_syn_CVAR_risk_tc,
-    returns_syn_CVAR_risk_tc,
-    corrsp_syn_CVAR_risk,
-    corrbond_syn_CVAR_risk,
-) = portfolio_syn(weight_syn_CVAR_risk)
-
-
-stackplts(weight_syn_CVAR_risk)
-
-t_syn_CVAR_risk = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CVAR_risk,
-            aum_syn_CVAR_risk,
-            returns_syn_CVAR_risk,
-            to_syn_CVAR_risk,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CVAR_risk,
-            aum_syn_CVAR_risk_tc,
-            returns_syn_CVAR_risk_tc,
-            to_syn_CVAR_risk,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CVAR_risk = pf.Portfolio(
+    weight_syn_CVAR_risk, data, syn=True, name="CVAR risk synth."
 )
-t_syn_CVAR_risk.columns = [
-    "CVAR risk synth. - No costs",
-    "CVAR risk synth. - With costs",
-]
-
+syn_CVAR_risk.stackplts()
+t_syn_CVAR_risk = syn_CVAR_risk.compute_table()
 
 ###############################################################################
-
 
 # Minimum risk CDAR:
 
@@ -2027,33 +1290,9 @@ for i in tqdm(range(rw_corr_number), desc="syn CDAR optimization"):
 
 del i
 
-
-(
-    aum_syn_CDAR,
-    returns_syn_CDAR,
-    to_syn_CDAR,
-    aum_syn_CDAR_tc,
-    returns_syn_CDAR_tc,
-    corrsp_syn_CDAR,
-    corrbond_syn_CDAR,
-) = portfolio_syn(weight_syn_CDAR)
-
-stackplts(weight_syn_CDAR)
-
-t_syn_CDAR = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CDAR, aum_syn_CDAR, returns_syn_CDAR, to_syn_CDAR, True
-        ),
-        performance_measures(
-            weight_syn_CDAR, aum_syn_CDAR_tc, returns_syn_CDAR_tc, to_syn_CDAR, True
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_syn_CDAR.columns = ["CDAR synth. - No costs", "CDAR synth. - With costs"]
-
+syn_CDAR = pf.Portfolio(weight_syn_CDAR, data, syn=True, name="CDAR synth.")
+syn_CDAR.stackplts()
+t_syn_CDAR = syn_CDAR.compute_table()
 
 # Optimal CDAR:
 
@@ -2068,44 +1307,11 @@ for i in tqdm(range(rw_corr_number), desc="syn CDAR risk optimization"):
 
 del i
 
-
-(
-    aum_syn_CDAR_risk,
-    returns_syn_CDAR_risk,
-    to_syn_CDAR_risk,
-    aum_syn_CDAR_risk_tc,
-    returns_syn_CDAR_risk_tc,
-    corrsp_syn_CDAR_risk,
-    corrbond_syn_CDAR_risk,
-) = portfolio_syn(weight_syn_CDAR_risk)
-
-stackplts(weight_syn_CDAR_risk)
-
-t_syn_CDAR_risk = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CDAR_risk,
-            aum_syn_CDAR_risk,
-            returns_syn_CDAR_risk,
-            to_syn_CDAR_risk,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CDAR_risk,
-            aum_syn_CDAR_risk_tc,
-            returns_syn_CDAR_risk_tc,
-            to_syn_CDAR_risk,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CDAR_risk = pf.Portfolio(
+    weight_syn_CDAR_risk, data, syn=True, name="CDAR risk synth."
 )
-t_syn_CDAR_risk.columns = [
-    "CDAR risk synth. - No costs",
-    "CDAR risk synth. - With costs",
-]
-
+syn_CDAR_risk.stackplts()
+t_syn_CDAR_risk = syn_CDAR_risk.compute_table()
 
 ###############################################################################
 
@@ -2122,44 +1328,11 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamin optimization"):
 
 del i
 
-
-(
-    aum_syn_Omegamin,
-    returns_syn_Omegamin,
-    to_syn_Omegamin,
-    aum_syn_Omegamin_tc,
-    returns_syn_Omegamin_tc,
-    corrsp_syn_Omegamin,
-    corrbond_syn_Omegamin,
-) = portfolio_syn(weight_syn_Omegamin)
-
-stackplts(weight_syn_Omegamin)
-
-t_syn_Omegamin = pd.concat(
-    [
-        performance_measures(
-            weight_syn_Omegamin,
-            aum_syn_Omegamin,
-            returns_syn_Omegamin,
-            to_syn_Omegamin,
-            True,
-        ),
-        performance_measures(
-            weight_syn_Omegamin,
-            aum_syn_Omegamin_tc,
-            returns_syn_Omegamin_tc,
-            to_syn_Omegamin,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_Omegamin = pf.Portfolio(
+    weight_syn_Omegamin, data, syn=True, name="Omega denum. synth."
 )
-t_syn_Omegamin.columns = [
-    "Omega denum. synth - No costs",
-    "Omega denum. synth - With costs",
-]
-
+syn_Omegamin.stackplts()
+t_syn_Omegamin = syn_Omegamin.compute_table()
 
 # Optimal Omega:
 
@@ -2174,43 +1347,11 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamax optimization"):
 
 del i
 
-
-(
-    aum_syn_Omegamax,
-    returns_syn_Omegamax,
-    to_syn_Omegamax,
-    aum_syn_Omegamax_tc,
-    returns_syn_Omegamax_tc,
-    corrsp_syn_Omegamax,
-    corrbond_syn_Omegamax,
-) = portfolio_syn(weight_syn_Omegamax)
-
-stackplts(weight_syn_Omegamax)
-
-t_syn_Omegamax = pd.concat(
-    [
-        performance_measures(
-            weight_syn_Omegamax,
-            aum_syn_Omegamax,
-            returns_syn_Omegamax,
-            to_syn_Omegamax,
-            True,
-        ),
-        performance_measures(
-            weight_syn_Omegamax,
-            aum_syn_Omegamax_tc,
-            returns_syn_Omegamax_tc,
-            to_syn_Omegamax,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_Omegamax = pf.Portfolio(
+    weight_syn_Omegamax, data, syn=True, name="Omega ratio synth."
 )
-t_syn_Omegamax.columns = [
-    "Omega ratio synth.- No costs",
-    "Omega ratio synth.- With costs",
-]
+syn_Omegamax.stackplts()
+t_syn_Omegamax = syn_Omegamax.compute_table()
 
 ###############################################################################
 
@@ -2254,9 +1395,6 @@ t_syn_P1.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter("Performance Measures.xlsx") as writer:
-    t_syn_P1.to_excel(writer, sheet_name="P1 - Synthetic")
-
 
 # With costs:
 
@@ -2264,15 +1402,15 @@ sns.set_palette("tab10")
 sns_plot = plt.figure(figsize=(16, 9))
 plt.title("Portfolio computed using synthetic returns with costs (base level=100)")
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW_tc, linestyle=(0, (1, 1)), color="dimgrey")
-sns.lineplot(data=aum_MVP_tc, linestyle=(0, (5, 5)), color="dimgrey")
-sns.lineplot(data=aum_MSR_tc, linestyle=(0, (5, 1)), color="dimgrey")
-sns.lineplot(data=aum_syn_CVAR_tc)
-sns.lineplot(data=aum_syn_CVAR_risk_tc)
-sns.lineplot(data=aum_syn_CDAR_tc)
-sns.lineplot(data=aum_syn_CDAR_risk_tc)
-sns.lineplot(data=aum_syn_Omegamin_tc)
-sns.lineplot(data=aum_syn_Omegamax_tc)
+sns.lineplot(data=EW.compute_aum_tc(), linestyle=(0, (1, 1)), color="dimgrey")
+sns.lineplot(data=MVP.compute_aum_tc(), linestyle=(0, (5, 5)), color="dimgrey")
+sns.lineplot(data=MSR.compute_aum_tc(), linestyle=(0, (5, 1)), color="dimgrey")
+sns.lineplot(data=syn_CVAR.compute_aum_tc())
+sns.lineplot(data=syn_CVAR_risk.compute_aum_tc())
+sns.lineplot(data=syn_CDAR.compute_aum_tc())
+sns.lineplot(data=syn_CDAR_risk.compute_aum_tc())
+sns.lineplot(data=syn_Omegamin.compute_aum_tc())
+sns.lineplot(data=syn_Omegamax.compute_aum_tc())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -2294,7 +1432,8 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P1.png")
+plt.savefig("synthetic_P1_costs.png")
+plt.close()
 
 
 # Without costs:
@@ -2303,15 +1442,15 @@ sns.set_palette("tab10")
 sns_plot = plt.figure(figsize=(16, 9))
 plt.title("Portfolio computed using historical returns without costs (base level=100)")
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW, linestyle=(0, (1, 1)), color="black")
-sns.lineplot(data=aum_MVP, linestyle=(0, (5, 5)), color="black")
-sns.lineplot(data=aum_MSR, linestyle=(0, (5, 1)), color="black")
-sns.lineplot(data=aum_syn_CVAR)
-sns.lineplot(data=aum_syn_CVAR_risk)
-sns.lineplot(data=aum_syn_CDAR)
-sns.lineplot(data=aum_syn_CDAR_risk)
-sns.lineplot(data=aum_syn_Omegamin)
-sns.lineplot(data=aum_syn_Omegamax)
+sns.lineplot(data=EW.compute_aum(), linestyle=(0, (1, 1)), color="black")
+sns.lineplot(data=MVP.compute_aum(), linestyle=(0, (5, 5)), color="black")
+sns.lineplot(data=MSR.compute_aum(), linestyle=(0, (5, 1)), color="black")
+sns.lineplot(data=syn_CVAR.compute_aum())
+sns.lineplot(data=syn_CVAR_risk.compute_aum())
+sns.lineplot(data=syn_CDAR.compute_aum())
+sns.lineplot(data=syn_CDAR_risk.compute_aum())
+sns.lineplot(data=syn_Omegamin.compute_aum())
+sns.lineplot(data=syn_Omegamax.compute_aum())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -2334,6 +1473,7 @@ plt.legend(
     ncol=5,
 )
 plt.savefig("synthetic_P1.png")
+plt.close()
 
 
 ###############################################################################
@@ -2354,7 +1494,6 @@ plt.savefig("synthetic_P1.png")
 rw_number = len(Returns) - rw
 ###############################################################################
 
-
 # Minimum risk CVAR:
 
 weight_CVAR_mint = [0] * rw_number
@@ -2371,38 +1510,10 @@ for i in tqdm(range(rw_number), desc="CVAR mint"):
 del i
 
 
-(
-    aum_CVAR_mint,
-    returns_CVAR_mint,
-    to_CVAR_mint,
-    aum_CVAR_mint_tc,
-    returns_CVAR_mint_tc,
-    corrsp_CVAR_mint,
-    corrbond_CVAR_mint,
-) = portfolio(weight_CVAR_mint)
-
-turnover_plot(to_CVAR_mint, to_CVAR)
-
-stackplts(weight_CVAR_mint)
-
-t_CVAR_mint = pd.concat(
-    [
-        performance_measures(
-            weight_CVAR_mint, aum_CVAR_mint, returns_CVAR_mint, to_CVAR_mint, False
-        ),
-        performance_measures(
-            weight_CVAR_mint,
-            aum_CVAR_mint_tc,
-            returns_CVAR_mint_tc,
-            to_CVAR_mint,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CVAR_mint.columns = ["Min t - CVAR - No costs", "Min t - CVAR - With costs"]
-
+CVAR_mint = pf.Portfolio(weight_CVAR_mint, data, name="Min t - CVAR")
+CVAR_mint.stackplts()
+CVAR_mint.turnover_plot(CVAR.compute_turnover())
+t_CVAR_mint = CVAR_mint.compute_table()
 
 # Optimal CVAR:
 
@@ -2445,43 +1556,10 @@ for i in tqdm(range(rw_number), desc="CVAR risk mint optimization"):
 
 del i
 
-
-(
-    aum_CVAR_risk_mint,
-    returns_CVAR_risk_mint,
-    to_CVAR_risk_mint,
-    aum_CVAR_risk_mint_tc,
-    returns_CVAR_risk_mint_tc,
-    corrsp_CVAR_risk_mint,
-    corrbond_CVAR_risk_mint,
-) = portfolio(weight_CVAR_risk_mint)
-
-turnover_plot(to_CVAR_risk_mint, to_CVAR_risk)
-
-stackplts(weight_CVAR_risk_mint)
-
-t_CVAR_risk_mint = pd.concat(
-    [
-        performance_measures(
-            weight_CVAR_risk_mint,
-            aum_CVAR_risk_mint,
-            returns_CVAR_risk_mint,
-            to_CVAR_risk_mint,
-            False,
-        ),
-        performance_measures(
-            weight_CVAR_risk_mint,
-            aum_CVAR_risk_mint_tc,
-            returns_CVAR_risk_mint_tc,
-            to_CVAR_risk_mint,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CVAR_risk_mint.columns = ["Min t - CVAR - No costs", "Min t - CVAR - With costs"]
-
+CVAR_risk_mint = pf.Portfolio(weight_CVAR_risk_mint, data, name="Min t - CVAR")
+CVAR_risk_mint.stackplts()
+CVAR_risk_mint.turnover_plot(CVAR_risk.compute_turnover())
+t_CVAR_risk_mint = CVAR_risk_mint.compute_table()
 
 ###############################################################################
 
@@ -2500,39 +1578,10 @@ for i in tqdm(range(rw_number), desc="CDAR mint optimization"):
 
 del i
 
-
-(
-    aum_CDAR_mint,
-    returns_CDAR_mint,
-    to_CDAR_mint,
-    aum_CDAR_mint_tc,
-    returns_CDAR_mint_tc,
-    corrsp_CDAR_mint,
-    corrbond_CDAR_mint,
-) = portfolio(weight_CDAR_mint)
-
-turnover_plot(to_CDAR_mint, to_CDAR)
-
-stackplts(weight_CDAR_mint)
-
-t_CDAR_mint = pd.concat(
-    [
-        performance_measures(
-            weight_CDAR_mint, aum_CDAR_mint, returns_CDAR_mint, to_CDAR_mint, False
-        ),
-        performance_measures(
-            weight_CDAR_mint,
-            aum_CDAR_mint_tc,
-            returns_CDAR_mint_tc,
-            to_CDAR_mint,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CDAR_mint.columns = ["Min t - CDAR - No costs", "Min t - CDAR - With costs"]
-
+CDAR_mint = pf.Portfolio(weight_CDAR_mint, data, name="Min t - CDAR")
+CDAR_mint.stackplts()
+CDAR_mint.turnover_plot(CDAR.compute_turnover())
+t_CDAR_mint = CDAR_mint.compute_table()
 
 # Optimal CDAR:
 
@@ -2577,42 +1626,10 @@ for i in tqdm(range(rw_number), desc="CDAR risk mint optimization"):
 del i
 
 
-(
-    aum_CDAR_risk_mint,
-    returns_CDAR_risk_mint,
-    to_CDAR_risk_mint,
-    aum_CDAR_risk_mint_tc,
-    returns_CDAR_risk_mint_tc,
-    corrsp_CDAR_risk_mint,
-    corrbond_CDAR_risk_mint,
-) = portfolio(weight_CDAR_risk_mint)
-
-turnover_plot(to_CDAR_risk_mint, to_CDAR_risk)
-
-stackplts(weight_CDAR_risk_mint)
-
-t_CDAR_risk_mint = pd.concat(
-    [
-        performance_measures(
-            weight_CDAR_risk_mint,
-            aum_CDAR_risk_mint,
-            returns_CDAR_risk_mint,
-            to_CDAR_risk_mint,
-            False,
-        ),
-        performance_measures(
-            weight_CDAR_risk_mint,
-            aum_CDAR_risk_mint_tc,
-            returns_CDAR_risk_mint_tc,
-            to_CDAR_risk_mint,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CDAR_risk_mint.columns = ["Min t - CDAR - No costs", "Min t - CDAR - With costs"]
-
+CDAR_risk_mint = pf.Portfolio(weight_CDAR_risk_mint, data, name="Min t - CDAR")
+CDAR_risk_mint.stackplts()
+CDAR_risk_mint.turnover_plot(CDAR_risk.compute_turnover())
+t_CDAR_risk_mint = CDAR_risk_mint.compute_table()
 
 ###############################################################################
 
@@ -2632,46 +1649,10 @@ for i in tqdm(range(rw_number), desc="Omegamin mint optimization"):
 del i
 
 
-(
-    aum_Omegamin_mint,
-    returns_Omegamin_mint,
-    to_Omegamin_mint,
-    aum_Omegamin_mint_tc,
-    returns_Omegamin_mint_tc,
-    corrsp_Omegamin_mint,
-    corrbond_Omegamin_mint,
-) = portfolio(weight_Omegamin_mint)
-
-
-turnover_plot(to_Omegamin_mint, to_Omegamin)
-
-stackplts(weight_Omegamin_mint)
-
-t_Omegamin_mint = pd.concat(
-    [
-        performance_measures(
-            weight_Omegamin_mint,
-            aum_Omegamin_mint,
-            returns_Omegamin_mint,
-            to_Omegamin_mint,
-            False,
-        ),
-        performance_measures(
-            weight_Omegamin_mint,
-            aum_Omegamin_mint_tc,
-            returns_Omegamin_mint_tc,
-            to_Omegamin_mint,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_Omegamin_mint.columns = [
-    "Min t - Omega denum. - No costs",
-    "Min t - Omega denum. - With costs",
-]
-
+Omegamin_mint = pf.Portfolio(weight_Omegamin_mint, data, name="Min t - Omega denum.")
+Omegamin_mint.stackplts()
+Omegamin_mint.turnover_plot(Omegamin.compute_turnover())
+t_Omegamin_mint = Omegamin_mint.compute_table()
 
 # Optimal Omega:
 
@@ -2716,44 +1697,10 @@ for i in tqdm(range(rw_number), desc="Omegamax mint optimization"):
 del i
 
 
-(
-    aum_Omegamax_mint,
-    returns_Omegamax_mint,
-    to_Omegamax_mint,
-    aum_Omegamax_mint_tc,
-    returns_Omegamax_mint_tc,
-    corrsp_Omegamax_mint,
-    corrbond_Omegamax_mint,
-) = portfolio(weight_Omegamax_mint)
-
-turnover_plot(to_Omegamax_mint, to_Omegamax)
-
-stackplts(weight_Omegamax_mint)
-
-t_Omegamax_mint = pd.concat(
-    [
-        performance_measures(
-            weight_Omegamax_mint,
-            aum_Omegamax_mint,
-            returns_Omegamax_mint,
-            to_Omegamax_mint,
-            False,
-        ),
-        performance_measures(
-            weight_Omegamax_mint,
-            aum_Omegamax_mint_tc,
-            returns_Omegamax_mint_tc,
-            to_Omegamax_mint,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_Omegamax_mint.columns = [
-    "Min t - Omega ratio - No costs",
-    "Min t - Omega ratio - With costs",
-]
+Omegamax_mint = pf.Portfolio(weight_Omegamax_mint, data, name="Min t - Omega ratio")
+Omegamax_mint.stackplts()
+Omegamax_mint.turnover_plot(Omegamax.compute_turnover())
+t_Omegamax_mint = Omegamax_mint.compute_table()
 
 ###############################################################################
 
@@ -2798,9 +1745,6 @@ t_historical_P2.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter("Performance Measures.xlsx") as writer:
-    t_historical_P2.to_excel(writer, sheet_name="P2 - Historical")
-
 
 # With costs:
 
@@ -2810,15 +1754,15 @@ plt.title(
     "Portfolio with cost optimized computed using historical returns with costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW_tc, linestyle=(0, (1, 1)), color="dimgrey")
-sns.lineplot(data=aum_MVP_tc, linestyle=(0, (5, 5)), color="dimgrey")
-sns.lineplot(data=aum_MSR_tc, linestyle=(0, (5, 1)), color="dimgrey")
-sns.lineplot(data=aum_CVAR_mint_tc)
-sns.lineplot(data=aum_CVAR_risk_mint_tc)
-sns.lineplot(data=aum_CDAR_mint_tc)
-sns.lineplot(data=aum_CDAR_risk_mint_tc)
-sns.lineplot(data=aum_Omegamin_mint_tc)
-sns.lineplot(data=aum_Omegamax_mint_tc)
+sns.lineplot(data=EW.compute_aum_tc(), linestyle=(0, (1, 1)), color="dimgrey")
+sns.lineplot(data=MVP.compute_aum_tc(), linestyle=(0, (5, 5)), color="dimgrey")
+sns.lineplot(data=MSR.compute_aum_tc(), linestyle=(0, (5, 1)), color="dimgrey")
+sns.lineplot(data=CVAR_mint.compute_aum_tc())
+sns.lineplot(data=CVAR_risk_mint.compute_aum_tc())
+sns.lineplot(data=CDAR_mint.compute_aum_tc())
+sns.lineplot(data=CDAR_risk_mint.compute_aum_tc())
+sns.lineplot(data=Omegamin_mint.compute_aum_tc())
+sns.lineplot(data=Omegamax_mint.compute_aum_tc())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -2840,7 +1784,8 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P2.png")
+plt.savefig("historical_P2_costs.png")
+plt.close()
 
 
 # Without costs:
@@ -2851,15 +1796,15 @@ plt.title(
     "Portfolio with cost optimized computed using historical returns without costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW, linestyle=(0, (1, 1)), color="black")
-sns.lineplot(data=aum_MVP, linestyle=(0, (5, 5)), color="black")
-sns.lineplot(data=aum_MSR, linestyle=(0, (5, 1)), color="black")
-sns.lineplot(data=aum_CVAR_mint)
-sns.lineplot(data=aum_CVAR_risk_mint)
-sns.lineplot(data=aum_CDAR_mint)
-sns.lineplot(data=aum_CDAR_risk_mint)
-sns.lineplot(data=aum_Omegamin_mint)
-sns.lineplot(data=aum_Omegamax_mint)
+sns.lineplot(data=EW.compute_aum(), linestyle=(0, (1, 1)), color="black")
+sns.lineplot(data=MVP.compute_aum(), linestyle=(0, (5, 5)), color="black")
+sns.lineplot(data=MSR.compute_aum(), linestyle=(0, (5, 1)), color="black")
+sns.lineplot(data=CVAR_mint.compute_aum())
+sns.lineplot(data=CVAR_risk_mint.compute_aum())
+sns.lineplot(data=CDAR_mint.compute_aum())
+sns.lineplot(data=CDAR_risk_mint.compute_aum())
+sns.lineplot(data=Omegamin_mint.compute_aum())
+sns.lineplot(data=Omegamax_mint.compute_aum())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -2882,6 +1827,7 @@ plt.legend(
     ncol=5,
 )
 plt.savefig("historical_P2.png")
+plt.close()
 
 
 ###############################################################################
@@ -2907,46 +1853,12 @@ for i in tqdm(range(rw_corr_number), desc="syn CVAR mint optimization"):
 
 del i
 
-
-(
-    aum_syn_CVAR_mint,
-    returns_syn_CVAR_mint,
-    to_syn_CVAR_mint,
-    aum_syn_CVAR_mint_tc,
-    returns_syn_CVAR_mint_tc,
-    corrsp_syn_CVAR_mint,
-    corrbond_syn_CVAR_mint,
-) = portfolio_syn(weight_syn_CVAR_mint)
-
-turnover_plot(to_syn_CVAR_mint, to_syn_CVAR)
-
-stackplts(weight_syn_CVAR_mint)
-
-t_syn_CVAR_mint = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CVAR_mint,
-            aum_syn_CVAR_mint,
-            returns_syn_CVAR_mint,
-            to_syn_CVAR_mint,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CVAR_mint,
-            aum_syn_CVAR_mint_tc,
-            returns_syn_CVAR_mint_tc,
-            to_syn_CVAR_mint,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CVAR_mint = pf.Portfolio(
+    weight_syn_CVAR_mint, data, syn=True, name="Min t - CVAR synth."
 )
-t_syn_CVAR_mint.columns = [
-    "Min t - CVAR synth. - No costs",
-    "Min t - CVAR synth. - With costs",
-]
-
+syn_CVAR_mint.stackplts()
+syn_CVAR_mint.turnover_plot(syn_CVAR.compute_turnover())
+t_syn_CVAR_mint = syn_CVAR_mint.compute_table()
 
 # Optimal CVAR:
 
@@ -2993,46 +1905,12 @@ for i in tqdm(range(rw_corr_number), desc="syn CVAR risk mint optimization"):
 
 del i
 
-
-(
-    aum_syn_CVAR_risk_mint,
-    returns_syn_CVAR_risk_mint,
-    to_syn_CVAR_risk_mint,
-    aum_syn_CVAR_risk_mint_tc,
-    returns_syn_CVAR_risk_mint_tc,
-    corrsp_syn_CVAR_risk_mint,
-    corrbond_syn_CVAR_risk_mint,
-) = portfolio_syn(weight_syn_CVAR_risk_mint)
-
-turnover_plot(to_syn_CVAR_risk_mint, to_syn_CVAR_risk)
-
-stackplts(weight_syn_CVAR_risk_mint)
-
-t_syn_CVAR_risk_mint = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CVAR_risk_mint,
-            aum_syn_CVAR_risk_mint,
-            returns_syn_CVAR_risk_mint,
-            to_syn_CVAR_risk_mint,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CVAR_risk_mint,
-            aum_syn_CVAR_risk_mint_tc,
-            returns_syn_CVAR_risk_mint_tc,
-            to_syn_CVAR_risk_mint,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CVAR_risk_mint = pf.Portfolio(
+    weight_syn_CVAR_risk_mint, data, syn=True, name="Min t - CVAR synth."
 )
-t_syn_CVAR_risk_mint.columns = [
-    "Min t - CVAR synth. - No costs",
-    "Min t - CVAR synth. - With costs",
-]
-
+syn_CVAR_risk_mint.stackplts()
+syn_CVAR_risk_mint.turnover_plot(syn_CVAR_risk.compute_turnover())
+t_syn_CVAR_risk_mint = syn_CVAR_risk_mint.compute_table()
 
 ###############################################################################
 
@@ -3052,52 +1930,17 @@ for i in tqdm(range(rw_corr_number), desc="syn CDAR mint optimization"):
 
 del i
 
-
-(
-    aum_syn_CDAR_mint,
-    returns_syn_CDAR_mint,
-    to_syn_CDAR_mint,
-    aum_syn_CDAR_mint_tc,
-    returns_syn_CDAR_mint_tc,
-    corrsp_syn_CDAR_mint,
-    corrbond_syn_CDAR_mint,
-) = portfolio_syn(weight_syn_CDAR_mint)
-
-turnover_plot(to_syn_CDAR_mint, to_syn_CDAR)
-
-stackplts(weight_syn_CDAR_mint)
-
-t_syn_CDAR_mint = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CDAR_mint,
-            aum_syn_CDAR_mint,
-            returns_syn_CDAR_mint,
-            to_syn_CDAR_mint,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CDAR_mint,
-            aum_syn_CDAR_mint_tc,
-            returns_syn_CDAR_mint_tc,
-            to_syn_CDAR_mint,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CDAR_mint = pf.Portfolio(
+    weight_syn_CDAR_mint, data, syn=True, name="Min t - CDAR synth."
 )
-t_syn_CDAR_mint.columns = [
-    "Min t - CDAR synth. - No costs",
-    "Min t - CDAR synth. - With costs",
-]
-
+syn_CDAR_mint.stackplts()
+syn_CDAR_mint.turnover_plot(syn_CDAR.compute_turnover())
+t_syn_CDAR_mint = syn_CDAR_mint.compute_table()
 
 # Optimal CDAR:
 
 weight_syn_CDAR_risk_mint = [0] * rw_corr_number
 weight_syn_CDAR_risk_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
-
 
 turnover_penalty = 0.3
 w0 = None
@@ -3138,49 +1981,14 @@ for i in tqdm(range(rw_corr_number), desc="syn CDAR risk mint optimization"):
 
 del i
 
-
-(
-    aum_syn_CDAR_risk_mint,
-    returns_syn_CDAR_risk_mint,
-    to_syn_CDAR_risk_mint,
-    aum_syn_CDAR_risk_mint_tc,
-    returns_syn_CDAR_risk_mint_tc,
-    corrsp_syn_CDAR_risk_mint,
-    corrbond_syn_CDAR_risk_mint,
-) = portfolio_syn(weight_syn_CDAR_risk_mint)
-
-turnover_plot(to_syn_CDAR_risk_mint, to_syn_CDAR_risk)
-
-stackplts(weight_syn_CDAR_risk_mint)
-
-t_syn_CDAR_risk_mint = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CDAR_risk_mint,
-            aum_syn_CDAR_risk_mint,
-            returns_syn_CDAR_risk_mint,
-            to_syn_CDAR_risk_mint,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CDAR_risk_mint,
-            aum_syn_CDAR_risk_mint_tc,
-            returns_syn_CDAR_risk_mint_tc,
-            to_syn_CDAR_risk_mint,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CDAR_risk_mint = pf.Portfolio(
+    weight_syn_CDAR_risk_mint, data, syn=True, name="Min t - CDAR synth."
 )
-t_syn_CDAR_risk_mint.columns = [
-    "Min t - CDAR synth. - No costs",
-    "Min t - CDAR synth. - With costs",
-]
-
+syn_CDAR_risk_mint.stackplts()
+syn_CDAR_risk_mint.turnover_plot(syn_CDAR_risk.compute_turnover())
+t_syn_CDAR_risk_mint = syn_CDAR_risk_mint.compute_table()
 
 ###############################################################################
-
 
 # Minimum risk Omega:
 
@@ -3198,54 +2006,17 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamin mint optimization"):
 
 del i
 
-
-(
-    aum_syn_Omegamin_mint,
-    returns_syn_Omegamin_mint,
-    to_syn_Omegamin_mint,
-    aum_syn_Omegamin_mint_tc,
-    returns_syn_Omegamin_mint_tc,
-    corrsp_syn_Omegamin_mint,
-    corrbond_syn_Omegamin_mint,
-) = portfolio_syn(weight_syn_Omegamin_mint)
-
-
-turnover_plot(to_syn_Omegamin_mint, to_syn_Omegamin)
-
-stackplts(weight_syn_Omegamin_mint)
-
-
-t_syn_Omegamin_mint = pd.concat(
-    [
-        performance_measures(
-            weight_syn_Omegamin_mint,
-            aum_syn_Omegamin_mint,
-            returns_syn_Omegamin_mint,
-            to_syn_Omegamin_mint,
-            True,
-        ),
-        performance_measures(
-            weight_syn_Omegamin_mint,
-            aum_syn_Omegamin_mint_tc,
-            returns_syn_Omegamin_mint_tc,
-            to_syn_Omegamin_mint,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_Omegamin_mint = pf.Portfolio(
+    weight_syn_Omegamin_mint, data, syn=True, name="Min t - Omega denum. synth"
 )
-t_syn_Omegamin_mint.columns = [
-    "Min t - Omega denum. synth - No costs",
-    "Min t - Omega denum. synth - With costs",
-]
-
+syn_Omegamin_mint.stackplts()
+syn_Omegamin_mint.turnover_plot(syn_Omegamin.compute_turnover())
+t_syn_Omegamin_mint = syn_Omegamin_mint.compute_table()
 
 # Optimal Omega:
 
 weight_syn_Omegamax_mint = [0] * rw_corr_number
 weight_syn_Omegamax_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
-
 
 turnover_penalty = 0.3
 w0 = None
@@ -3285,46 +2056,12 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamax mint optimization"):
 
 del i
 
-
-(
-    aum_syn_Omegamax_mint,
-    returns_syn_Omegamax_mint,
-    to_syn_Omegamax_mint,
-    aum_syn_Omegamax_mint_tc,
-    returns_syn_Omegamax_mint_tc,
-    corrsp_syn_Omegamax_mint,
-    corrbond_syn_Omegamax_mint,
-) = portfolio_syn(weight_syn_Omegamax_mint)
-
-turnover_plot(to_syn_Omegamax_mint, to_syn_Omegamax)
-
-stackplts(weight_syn_Omegamax_mint)
-
-t_syn_Omegamax_mint = pd.concat(
-    [
-        performance_measures(
-            weight_syn_Omegamax_mint,
-            aum_syn_Omegamax_mint,
-            returns_syn_Omegamax_mint,
-            to_syn_Omegamax_mint,
-            True,
-        ),
-        performance_measures(
-            weight_syn_Omegamax_mint,
-            aum_syn_Omegamax_mint_tc,
-            returns_syn_Omegamax_mint_tc,
-            to_syn_Omegamax_mint,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_Omegamax_mint = pf.Portfolio(
+    weight_syn_Omegamax_mint, data, syn=True, name="Min t - Omega ratio synth."
 )
-t_syn_Omegamax_mint.columns = [
-    "Min t - Omega ratio synth.- No costs",
-    "Min t - Omega ratio synth.- With costs",
-]
-
+syn_Omegamax_mint.stackplts()
+syn_Omegamax_mint.turnover_plot(syn_Omegamax.compute_turnover())
+t_syn_Omegamax_mint = syn_Omegamax_mint.compute_table()
 
 ###############################################################################
 
@@ -3369,9 +2106,6 @@ t_syn_P2.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter("Performance Measures.xlsx") as writer:
-    t_syn_P2.to_excel(writer, sheet_name="P2 - Synthetic")
-
 
 # With costs:
 
@@ -3381,15 +2115,15 @@ plt.title(
     "Portfolio with cost optimized computed using synthetic returns with costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW_tc, linestyle=(0, (1, 1)), color="dimgrey")
-sns.lineplot(data=aum_MVP_tc, linestyle=(0, (5, 5)), color="dimgrey")
-sns.lineplot(data=aum_MSR_tc, linestyle=(0, (5, 1)), color="dimgrey")
-sns.lineplot(data=aum_syn_CVAR_mint_tc)
-sns.lineplot(data=aum_syn_CVAR_risk_mint_tc)
-sns.lineplot(data=aum_syn_CDAR_mint_tc)
-sns.lineplot(data=aum_syn_CDAR_risk_mint_tc)
-sns.lineplot(data=aum_syn_Omegamin_mint_tc)
-sns.lineplot(data=aum_syn_Omegamax_mint_tc)
+sns.lineplot(data=EW.compute_aum_tc(), linestyle=(0, (1, 1)), color="dimgrey")
+sns.lineplot(data=MVP.compute_aum_tc(), linestyle=(0, (5, 5)), color="dimgrey")
+sns.lineplot(data=MSR.compute_aum_tc(), linestyle=(0, (5, 1)), color="dimgrey")
+sns.lineplot(data=syn_CVAR_mint.compute_aum_tc())
+sns.lineplot(data=syn_CVAR_risk_mint.compute_aum_tc())
+sns.lineplot(data=syn_CDAR_mint.compute_aum_tc())
+sns.lineplot(data=syn_CDAR_risk_mint.compute_aum_tc())
+sns.lineplot(data=syn_Omegamin_mint.compute_aum_tc())
+sns.lineplot(data=syn_Omegamax_mint.compute_aum_tc())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -3411,7 +2145,8 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P2.png")
+plt.savefig("synthetic_P2_costs.png")
+plt.close()
 
 
 # Without costs:
@@ -3422,15 +2157,15 @@ plt.title(
     "Portfolio with cost optimized computed using synthetic returns without costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW, linestyle=(0, (1, 1)), color="black")
-sns.lineplot(data=aum_MVP, linestyle=(0, (5, 5)), color="black")
-sns.lineplot(data=aum_MSR, linestyle=(0, (5, 1)), color="black")
-sns.lineplot(data=aum_syn_CVAR_mint)
-sns.lineplot(data=aum_syn_CVAR_risk_mint)
-sns.lineplot(data=aum_syn_CDAR_mint)
-sns.lineplot(data=aum_syn_CDAR_risk_mint)
-sns.lineplot(data=aum_syn_Omegamin_mint)
-sns.lineplot(data=aum_syn_Omegamax_mint)
+sns.lineplot(data=EW.compute_aum(), linestyle=(0, (1, 1)), color="black")
+sns.lineplot(data=MVP.compute_aum(), linestyle=(0, (5, 5)), color="black")
+sns.lineplot(data=MSR.compute_aum(), linestyle=(0, (5, 1)), color="black")
+sns.lineplot(data=syn_CVAR_mint.compute_aum())
+sns.lineplot(data=syn_CVAR_risk_mint.compute_aum())
+sns.lineplot(data=syn_CDAR_mint.compute_aum())
+sns.lineplot(data=syn_CDAR_risk_mint.compute_aum())
+sns.lineplot(data=syn_Omegamin_mint.compute_aum())
+sns.lineplot(data=syn_Omegamax_mint.compute_aum())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -3453,6 +2188,7 @@ plt.legend(
     ncol=5,
 )
 plt.savefig("synthetic_P2.png")
+plt.close()
 
 
 ###############################################################################
@@ -3470,7 +2206,6 @@ plt.savefig("synthetic_P2.png")
 ###############################################################################
 ###############################################################################
 ###############################################################################
-
 
 # Constraint parameter on maximium correlation of the portfolio to asset class
 # FIXME: Parameters of the constraints
@@ -3496,47 +2231,12 @@ for i in tqdm(range(rw_number), desc="CVAR optimization under constraint"):
 
 del i
 
-
-(
-    aum_CVAR_cons,
-    returns_CVAR_cons,
-    to_CVAR_cons,
-    aum_CVAR_cons_tc,
-    returns_CVAR_cons_tc,
-    corrsp_CVAR_cons,
-    corrbond_CVAR_cons,
-) = portfolio(weight_CVAR_cons)
-
-correlation_plot(
-    corrsp_CVAR_cons,
-    corrbond_CVAR_cons,
-    corrsp_CVAR,
-    corrbond_CVAR,
+CVAR_cons = pf.Portfolio(weight_CVAR_cons, data, name="Corr - CVAR")
+CVAR_cons.stackplts()
+CVAR_cons.correlation_plot(
+    CVAR.compute_correlation(rw_sp), CVAR.compute_correlation(rw_bond)
 )
-
-stackplts(weight_CVAR_cons)
-
-t_CVAR_cons = pd.concat(
-    [
-        performance_measures(
-            weight_CVAR_cons, aum_CVAR_cons, returns_CVAR_cons, to_CVAR_cons, False
-        ),
-        performance_measures(
-            weight_CVAR_cons,
-            aum_CVAR_cons_tc,
-            returns_CVAR_cons_tc,
-            to_CVAR_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CVAR_cons.columns = [
-    "Corr - CVAR - No costs",
-    "Corr - CVAR - With costs",
-]
-
+t_CVAR_cons = CVAR_cons.compute_table()
 
 # Optimal CVAR:
 
@@ -3557,53 +2257,14 @@ for i in tqdm(range(rw_number), desc="CVAR risk optimization under constraint"):
 
 del i
 
-
-(
-    aum_CVAR_risk_cons,
-    returns_CVAR_risk_cons,
-    to_CVAR_risk_cons,
-    aum_CVAR_risk_cons_tc,
-    returns_CVAR_risk_cons_tc,
-    corrsp_CVAR_risk_cons,
-    corrbond_CVAR_risk_cons,
-) = portfolio(weight_CVAR_risk_cons)
-
-correlation_plot(
-    corrsp_CVAR_risk_cons,
-    corrbond_CVAR_risk_cons,
-    corrsp_CVAR_risk,
-    corrbond_CVAR_risk,
+CVAR_risk_cons = pf.Portfolio(weight_CVAR_risk_cons, data, name="Corr - CVAR Risk")
+CVAR_risk_cons.stackplts()
+CVAR_risk_cons.correlation_plot(
+    CVAR_risk.compute_correlation(rw_sp), CVAR_risk.compute_correlation(rw_bond)
 )
-
-stackplts(weight_CVAR_risk_cons)
-
-t_CVAR_risk_cons = pd.concat(
-    [
-        performance_measures(
-            weight_CVAR_risk_cons,
-            aum_CVAR_risk_cons,
-            returns_CVAR_risk_cons,
-            to_CVAR_risk_cons,
-            False,
-        ),
-        performance_measures(
-            weight_CVAR_risk_cons,
-            aum_CVAR_risk_cons_tc,
-            returns_CVAR_risk_cons_tc,
-            to_CVAR_risk_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CVAR_risk_cons.columns = [
-    "Corr - CVAR Risk - No costs",
-    "Corr - CVAR Risk - With costs",
-]
+t_CVAR_risk_cons = CVAR_risk_cons.compute_table()
 
 ###############################################################################
-
 
 # Minimum risk CDAR:
 
@@ -3624,47 +2285,12 @@ for i in tqdm(range(rw_number), desc="CDAR optimization under constraint"):
 
 del i
 
-
-(
-    aum_CDAR_cons,
-    returns_CDAR_cons,
-    to_CDAR_cons,
-    aum_CDAR_cons_tc,
-    returns_CDAR_cons_tc,
-    corrsp_CDAR_cons,
-    corrbond_CDAR_cons,
-) = portfolio(weight_CDAR_cons)
-
-correlation_plot(
-    corrsp_CDAR_cons,
-    corrbond_CDAR_cons,
-    corrsp_CDAR,
-    corrbond_CDAR,
+CDAR_cons = pf.Portfolio(weight_CDAR_cons, data, name="Corr - CDAR")
+CDAR_cons.stackplts()
+CDAR_cons.correlation_plot(
+    CDAR.compute_correlation(rw_sp), CDAR.compute_correlation(rw_bond)
 )
-
-stackplts(weight_CDAR_cons)
-
-t_CDAR_cons = pd.concat(
-    [
-        performance_measures(
-            weight_CDAR_cons, aum_CDAR_cons, returns_CDAR_cons, to_CDAR_cons, False
-        ),
-        performance_measures(
-            weight_CDAR_cons,
-            aum_CDAR_cons_tc,
-            returns_CDAR_cons_tc,
-            to_CDAR_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CDAR_cons.columns = [
-    "Corr - CDAR - No costs",
-    "Corr - CDAR - With costs",
-]
-
+t_CDAR_cons = CDAR_cons.compute_table()
 
 # Optimal CDAR:
 
@@ -3685,54 +2311,14 @@ for i in tqdm(range(rw_number), desc="CDAR risk optimization under constraint"):
 
 del i
 
-
-(
-    aum_CDAR_risk_cons,
-    returns_CDAR_risk_cons,
-    to_CDAR_risk_cons,
-    aum_CDAR_risk_cons_tc,
-    returns_CDAR_risk_cons_tc,
-    corrsp_CDAR_risk_cons,
-    corrbond_CDAR_risk_cons,
-) = portfolio(weight_CDAR_risk_cons)
-
-correlation_plot(
-    corrsp_CDAR_risk_cons,
-    corrbond_CDAR_risk_cons,
-    corrsp_CDAR_risk,
-    corrbond_CDAR_risk,
+CDAR_risk_cons = pf.Portfolio(weight_CDAR_risk_cons, data, name="Corr - CDAR Risk")
+CDAR_risk_cons.stackplts()
+CDAR_risk_cons.correlation_plot(
+    CDAR_risk.compute_correlation(rw_sp), CDAR_risk.compute_correlation(rw_bond)
 )
-
-stackplts(weight_CDAR_risk_cons)
-
-t_CDAR_risk_cons = pd.concat(
-    [
-        performance_measures(
-            weight_CDAR_risk_cons,
-            aum_CDAR_risk_cons,
-            returns_CDAR_risk_cons,
-            to_CDAR_risk_cons,
-            False,
-        ),
-        performance_measures(
-            weight_CDAR_risk_cons,
-            aum_CDAR_risk_cons_tc,
-            returns_CDAR_risk_cons_tc,
-            to_CDAR_risk_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CDAR_risk_cons.columns = [
-    "Corr - CDAR Risk - No costs",
-    "Corr - CDAR Risk - With costs",
-]
-
+t_CDAR_risk_cons = CDAR_risk_cons.compute_table()
 
 ###############################################################################
-
 
 # Minimum risk Omega:
 
@@ -3753,51 +2339,12 @@ for i in tqdm(range(rw_number), desc="Omegamin optimization under constraint"):
 
 del i
 
-
-(
-    aum_Omegamin_cons,
-    returns_Omegamin_cons,
-    to_Omegamin_cons,
-    aum_Omegamin_cons_tc,
-    returns_Omegamin_cons_tc,
-    corrsp_Omegamin_cons,
-    corrbond_Omegamin_cons,
-) = portfolio(weight_Omegamin_cons)
-
-correlation_plot(
-    corrsp_Omegamin_cons,
-    corrbond_Omegamin_cons,
-    corrsp_Omegamin,
-    corrbond_Omegamin,
+Omegamin_cons = pf.Portfolio(weight_Omegamin_cons, data, name="Corr - Omegamin")
+Omegamin_cons.stackplts()
+Omegamin_cons.correlation_plot(
+    Omegamin.compute_correlation(rw_sp), Omegamin.compute_correlation(rw_bond)
 )
-
-stackplts(weight_Omegamin_cons)
-
-t_Omegamin_cons = pd.concat(
-    [
-        performance_measures(
-            weight_Omegamin_cons,
-            aum_Omegamin_cons,
-            returns_Omegamin_cons,
-            to_Omegamin_cons,
-            False,
-        ),
-        performance_measures(
-            weight_Omegamin_cons,
-            aum_Omegamin_cons_tc,
-            returns_Omegamin_cons_tc,
-            to_Omegamin_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_Omegamin_cons.columns = [
-    "Corr - Omegamin - No costs",
-    "Corr - Omegamin - With costs",
-]
-
+t_Omegamin_cons = Omegamin_cons.compute_table()
 
 # Optimal Omega:
 
@@ -3818,50 +2365,12 @@ for i in tqdm(range(rw_number), desc="Omegamax optimization under constraint"):
 
 del i
 
-
-(
-    aum_Omegamax_cons,
-    returns_Omegamax_cons,
-    to_Omegamax_cons,
-    aum_Omegamax_cons_tc,
-    returns_Omegamax_cons_tc,
-    corrsp_Omegamax_cons,
-    corrbond_Omegamax_cons,
-) = portfolio(weight_Omegamax_cons)
-
-correlation_plot(
-    corrsp_Omegamax_cons,
-    corrbond_Omegamax_cons,
-    corrsp_Omegamax,
-    corrbond_Omegamax,
+Omegamax_cons = pf.Portfolio(weight_Omegamax_cons, data, name="Corr - Omegamax")
+Omegamax_cons.stackplts()
+Omegamax_cons.correlation_plot(
+    Omegamax.compute_correlation(rw_sp), Omegamax.compute_correlation(rw_bond)
 )
-
-stackplts(weight_Omegamax_cons)
-
-t_Omegamax_cons = pd.concat(
-    [
-        performance_measures(
-            weight_Omegamax_cons,
-            aum_Omegamax_cons,
-            returns_Omegamax_cons,
-            to_Omegamax_cons,
-            False,
-        ),
-        performance_measures(
-            weight_Omegamax_cons,
-            aum_Omegamax_cons_tc,
-            returns_Omegamax_cons_tc,
-            to_Omegamax_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_Omegamax_cons.columns = [
-    "Corr - Omegamax - No costs",
-    "Corr - Omegamax - With costs",
-]
+t_Omegamax_cons = Omegamax_cons.compute_table()
 
 ###############################################################################
 
@@ -3906,9 +2415,6 @@ t_historical_P3.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter("Performance Measures.xlsx") as writer:
-    t_historical_P3.to_excel(writer, sheet_name="P3 - Historical")
-
 
 # With costs:
 
@@ -3918,15 +2424,15 @@ plt.title(
     "Portfolio with correlation constraints computed using historical returns with costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW_tc, linestyle=(0, (1, 1)), color="dimgrey")
-sns.lineplot(data=aum_MVP_tc, linestyle=(0, (5, 5)), color="dimgrey")
-sns.lineplot(data=aum_MSR_tc, linestyle=(0, (5, 1)), color="dimgrey")
-sns.lineplot(data=aum_CVAR_cons_tc)
-sns.lineplot(data=aum_CVAR_risk_cons_tc)
-sns.lineplot(data=aum_CDAR_cons_tc)
-sns.lineplot(data=aum_CDAR_risk_cons_tc)
-sns.lineplot(data=aum_Omegamin_cons_tc)
-sns.lineplot(data=aum_Omegamax_cons_tc)
+sns.lineplot(data=EW.compute_aum_tc(), linestyle=(0, (1, 1)), color="dimgrey")
+sns.lineplot(data=MVP.compute_aum_tc(), linestyle=(0, (5, 5)), color="dimgrey")
+sns.lineplot(data=MSR.compute_aum_tc(), linestyle=(0, (5, 1)), color="dimgrey")
+sns.lineplot(data=CVAR_cons.compute_aum_tc())
+sns.lineplot(data=CVAR_risk_cons.compute_aum_tc())
+sns.lineplot(data=CDAR_cons.compute_aum_tc())
+sns.lineplot(data=CDAR_risk_cons.compute_aum_tc())
+sns.lineplot(data=Omegamin_cons.compute_aum_tc())
+sns.lineplot(data=Omegamax_cons.compute_aum_tc())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -3948,7 +2454,8 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P3.png")
+plt.savefig("historical_P3_costs.png")
+plt.close()
 
 
 # Without costs:
@@ -3959,15 +2466,15 @@ plt.title(
     "Portfolio with correlation constraints computed using historical returns without costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW, linestyle=(0, (1, 1)), color="black")
-sns.lineplot(data=aum_MVP, linestyle=(0, (5, 5)), color="black")
-sns.lineplot(data=aum_MSR, linestyle=(0, (5, 1)), color="black")
-sns.lineplot(data=aum_CVAR_cons)
-sns.lineplot(data=aum_CVAR_risk_cons)
-sns.lineplot(data=aum_CDAR_cons)
-sns.lineplot(data=aum_CDAR_risk_cons)
-sns.lineplot(data=aum_Omegamin_cons)
-sns.lineplot(data=aum_Omegamax_cons)
+sns.lineplot(data=EW.compute_aum(), linestyle=(0, (1, 1)), color="black")
+sns.lineplot(data=MVP.compute_aum(), linestyle=(0, (5, 5)), color="black")
+sns.lineplot(data=MSR.compute_aum(), linestyle=(0, (5, 1)), color="black")
+sns.lineplot(data=CVAR_cons.compute_aum())
+sns.lineplot(data=CVAR_risk_cons.compute_aum())
+sns.lineplot(data=CDAR_cons.compute_aum())
+sns.lineplot(data=CDAR_risk_cons.compute_aum())
+sns.lineplot(data=Omegamin_cons.compute_aum())
+sns.lineplot(data=Omegamax_cons.compute_aum())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -3990,16 +2497,16 @@ plt.legend(
     ncol=5,
 )
 plt.savefig("historical_P3.png")
+plt.close()
 
 
 ###############################################################################
 
 
-#                    Optimization with synthetic returns and constraint on portfolio correlations             (syn + cons)      #
+# Optimization with synthetic returns and constraint on portfolio correlations  (syn + cons)  #
 
 
 ###############################################################################
-
 
 # Minimum risk CVAR
 
@@ -4020,51 +2527,15 @@ for i in tqdm(range(rw_corr_number), desc="syn CVAR optimization under constrain
 
 del i
 
-
-(
-    aum_syn_CVAR_cons,
-    returns_syn_CVAR_cons,
-    to_syn_CVAR_cons,
-    aum_syn_CVAR_cons_tc,
-    returns_syn_CVAR_cons_tc,
-    corrsp_syn_CVAR_cons,
-    corrbond_syn_CVAR_cons,
-) = portfolio_syn(weight_syn_CVAR_cons)
-
-correlation_plot(
-    corrsp_syn_CVAR_cons,
-    corrbond_syn_CVAR_cons,
-    corrsp_syn_CVAR,
-    corrbond_syn_CVAR,
+syn_CVAR_cons = pf.Portfolio(
+    weight_syn_CVAR_cons, data, syn=True, name="Corr - CVAR synth."
 )
-
-stackplts(weight_syn_CVAR_cons)
-
-t_syn_CVAR_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CVAR_cons,
-            aum_syn_CVAR_cons,
-            returns_syn_CVAR_cons,
-            to_syn_CVAR_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CVAR_cons,
-            aum_syn_CVAR_cons_tc,
-            returns_syn_CVAR_cons_tc,
-            to_syn_CVAR_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CVAR_cons.stackplts()
+syn_CVAR_cons.correlation_plot(
+    syn_CVAR.compute_correlation_syn(rw_corr_sp),
+    syn_CVAR.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_CVAR_cons.columns = [
-    "Corr - CVAR synth. - No costs",
-    "Corr - CVAR synth. - With costs",
-]
-
+t_syn_CVAR_cons = syn_CVAR_cons.compute_table()
 
 # Optimal CVAR:
 
@@ -4087,56 +2558,17 @@ for i in tqdm(
 
 del i
 
-
-(
-    aum_syn_CVAR_risk_cons,
-    returns_syn_CVAR_risk_cons,
-    to_syn_CVAR_risk_cons,
-    aum_syn_CVAR_risk_cons_tc,
-    returns_syn_CVAR_risk_cons_tc,
-    corrsp_syn_CVAR_risk_cons,
-    corrbond_syn_CVAR_risk_cons,
-) = portfolio_syn(weight_syn_CVAR_risk_cons)
-
-
-correlation_plot(
-    corrsp_syn_CVAR_risk_cons,
-    corrbond_syn_CVAR_risk_cons,
-    corrsp_syn_CVAR_risk,
-    corrbond_syn_CVAR_risk,
+syn_CVAR_risk_cons = pf.Portfolio(
+    weight_syn_CVAR_risk_cons, data, syn=True, name="Corr - CVAR risk synth."
 )
-
-
-stackplts(weight_syn_CVAR_risk_cons)
-
-t_syn_CVAR_risk_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CVAR_risk_cons,
-            aum_syn_CVAR_risk_cons,
-            returns_syn_CVAR_risk_cons,
-            to_syn_CVAR_risk_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CVAR_risk_cons,
-            aum_syn_CVAR_risk_cons_tc,
-            returns_syn_CVAR_risk_cons_tc,
-            to_syn_CVAR_risk_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CVAR_risk_cons.stackplts()
+syn_CVAR_risk_cons.correlation_plot(
+    syn_CVAR_risk.compute_correlation_syn(rw_corr_sp),
+    syn_CVAR_risk.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_CVAR_risk_cons.columns = [
-    "Corr - CVAR risk synth. - No costs",
-    "Corr - CVAR risk synth. - With costs",
-]
-
+t_syn_CVAR_risk_cons = syn_CVAR_risk_cons.compute_table()
 
 ###############################################################################
-
 
 # Minimum risk CDAR:
 
@@ -4157,51 +2589,15 @@ for i in tqdm(range(rw_corr_number), desc="syn CDAR optimization under constrain
 
 del i
 
-
-(
-    aum_syn_CDAR_cons,
-    returns_syn_CDAR_cons,
-    to_syn_CDAR_cons,
-    aum_syn_CDAR_cons_tc,
-    returns_syn_CDAR_cons_tc,
-    corrsp_syn_CDAR_cons,
-    corrbond_syn_CDAR_cons,
-) = portfolio_syn(weight_syn_CDAR_cons)
-
-correlation_plot(
-    corrsp_syn_CDAR_cons,
-    corrbond_syn_CDAR_cons,
-    corrsp_syn_CDAR,
-    corrbond_syn_CDAR,
+syn_CDAR_cons = pf.Portfolio(
+    weight_syn_CDAR_cons, data, syn=True, name="Corr - CDAR synth."
 )
-
-stackplts(weight_syn_CDAR_cons)
-
-t_syn_CDAR_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CDAR_cons,
-            aum_syn_CDAR_cons,
-            returns_syn_CDAR_cons,
-            to_syn_CDAR_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CDAR_cons,
-            aum_syn_CDAR_cons_tc,
-            returns_syn_CDAR_cons_tc,
-            to_syn_CDAR_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CDAR_cons.stackplts()
+syn_CDAR_cons.correlation_plot(
+    syn_CDAR.compute_correlation_syn(rw_corr_sp),
+    syn_CDAR.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_CDAR_cons.columns = [
-    "Corr - CDAR synth. - No costs",
-    "Corr - CDAR synth. - With costs",
-]
-
+t_syn_CDAR_cons = syn_CDAR_cons.compute_table()
 
 # Optimal CDAR:
 
@@ -4224,52 +2620,15 @@ for i in tqdm(
 
 del i
 
-
-(
-    aum_syn_CDAR_risk_cons,
-    returns_syn_CDAR_risk_cons,
-    to_syn_CDAR_risk_cons,
-    aum_syn_CDAR_risk_cons_tc,
-    returns_syn_CDAR_risk_cons_tc,
-    corrsp_syn_CDAR_risk_cons,
-    corrbond_syn_CDAR_risk_cons,
-) = portfolio_syn(weight_syn_CDAR_risk_cons)
-
-
-correlation_plot(
-    corrsp_syn_CDAR_risk_cons,
-    corrbond_syn_CDAR_risk_cons,
-    corrsp_syn_CDAR_risk,
-    corrbond_syn_CDAR_risk,
+syn_CDAR_risk_cons = pf.Portfolio(
+    weight_syn_CDAR_risk_cons, data, syn=True, name="Corr - CDAR synth."
 )
-
-stackplts(weight_syn_CDAR_risk_cons)
-
-t_syn_CDAR_risk_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CDAR_risk_cons,
-            aum_syn_CDAR_risk_cons,
-            returns_syn_CDAR_risk_cons,
-            to_syn_CDAR_risk_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CDAR_risk_cons,
-            aum_syn_CDAR_risk_cons_tc,
-            returns_syn_CDAR_risk_cons_tc,
-            to_syn_CDAR_risk_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CDAR_risk_cons.stackplts()
+syn_CDAR_risk_cons.correlation_plot(
+    syn_CDAR_risk.compute_correlation_syn(rw_corr_sp),
+    syn_CDAR_risk.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_CDAR_risk_cons.columns = [
-    "Corr - CDAR risk synth. - No costs",
-    "Corr - CDAR risk synth. - With costs",
-]
-
+t_syn_CDAR_risk_cons = syn_CDAR_risk_cons.compute_table()
 
 ###############################################################################
 
@@ -4292,52 +2651,15 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamin optimization under const
 
 del i
 
-
-(
-    aum_syn_Omegamin_cons,
-    returns_syn_Omegamin_cons,
-    to_syn_Omegamin_cons,
-    aum_syn_Omegamin_cons_tc,
-    returns_syn_Omegamin_cons_tc,
-    corrsp_syn_Omegamin_cons,
-    corrbond_syn_Omegamin_cons,
-) = portfolio_syn(weight_syn_Omegamin_cons)
-
-
-correlation_plot(
-    corrsp_syn_Omegamin_cons,
-    corrbond_syn_Omegamin_cons,
-    corrsp_syn_Omegamin,
-    corrbond_syn_Omegamin,
+syn_Omegamin_cons = pf.Portfolio(
+    weight_syn_Omegamin_cons, data, syn=True, name="Corr - Omegamin synth."
 )
-
-stackplts(weight_syn_Omegamin_cons)
-
-t_syn_Omegamin_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_Omegamin_cons,
-            aum_syn_Omegamin_cons,
-            returns_syn_Omegamin_cons,
-            to_syn_Omegamin_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_Omegamin_cons,
-            aum_syn_Omegamin_cons_tc,
-            returns_syn_Omegamin_cons_tc,
-            to_syn_Omegamin_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_Omegamin_cons.stackplts()
+syn_Omegamin_cons.correlation_plot(
+    syn_Omegamin.compute_correlation_syn(rw_corr_sp),
+    syn_Omegamin.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_Omegamin_cons.columns = [
-    "Corr - Omegamin synth. - No costs",
-    "Corr - Omegamin synth. - With costs",
-]
-
+t_syn_Omegamin_cons = syn_Omegamin_cons.compute_table()
 
 # Optimal Omega:
 
@@ -4358,52 +2680,15 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamax optimization under const
 
 del i
 
-
-(
-    aum_syn_Omegamax_cons,
-    returns_syn_Omegamax_cons,
-    to_syn_Omegamax_cons,
-    aum_syn_Omegamax_cons_tc,
-    returns_syn_Omegamax_cons_tc,
-    corrsp_syn_Omegamax_cons,
-    corrbond_syn_Omegamax_cons,
-) = portfolio_syn(weight_syn_Omegamax_cons)
-
-
-correlation_plot(
-    corrsp_syn_Omegamax_cons,
-    corrbond_syn_Omegamax_cons,
-    corrsp_syn_Omegamax,
-    corrbond_syn_Omegamax,
+syn_Omegamax_cons = pf.Portfolio(
+    weight_syn_Omegamax_cons, data, syn=True, name="Corr - Omegamax synth."
 )
-
-stackplts(weight_syn_Omegamax_cons)
-
-t_syn_Omegamax_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_Omegamax_cons,
-            aum_syn_Omegamax_cons,
-            returns_syn_Omegamax_cons,
-            to_syn_Omegamax_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_Omegamax_cons,
-            aum_syn_Omegamax_cons_tc,
-            returns_syn_Omegamax_cons_tc,
-            to_syn_Omegamax_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_Omegamax_cons.stackplts()
+syn_Omegamax_cons.correlation_plot(
+    syn_Omegamax.compute_correlation_syn(rw_corr_sp),
+    syn_Omegamax.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_Omegamax_cons.columns = [
-    "Corr - Omegamax synth. - No costs",
-    "Corr - Omegamax synth. - With costs",
-]
-
+t_syn_Omegamax_cons = syn_Omegamax_cons.compute_table()
 
 ###############################################################################
 
@@ -4448,9 +2733,6 @@ t_syn_P3.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter("Performance Measures.xlsx") as writer:
-    t_syn_P3.to_excel(writer, sheet_name="P3 - Synthetic")
-
 
 # With costs:
 
@@ -4460,15 +2742,15 @@ plt.title(
     "Portfolio with correlation constraints computed using synthetic returns with costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW_tc, linestyle=(0, (1, 1)), color="dimgrey")
-sns.lineplot(data=aum_MVP_tc, linestyle=(0, (5, 5)), color="dimgrey")
-sns.lineplot(data=aum_MSR_tc, linestyle=(0, (5, 1)), color="dimgrey")
-sns.lineplot(data=aum_syn_CVAR_cons_tc)
-sns.lineplot(data=aum_syn_CVAR_risk_cons_tc)
-sns.lineplot(data=aum_syn_CDAR_cons_tc)
-sns.lineplot(data=aum_syn_CDAR_risk_cons_tc)
-sns.lineplot(data=aum_syn_Omegamin_cons_tc)
-sns.lineplot(data=aum_syn_Omegamax_cons_tc)
+sns.lineplot(data=EW.compute_aum_tc(), linestyle=(0, (1, 1)), color="dimgrey")
+sns.lineplot(data=MVP.compute_aum_tc(), linestyle=(0, (5, 5)), color="dimgrey")
+sns.lineplot(data=MSR.compute_aum_tc(), linestyle=(0, (5, 1)), color="dimgrey")
+sns.lineplot(data=syn_CVAR_cons.compute_aum_tc())
+sns.lineplot(data=syn_CVAR_risk_cons.compute_aum_tc())
+sns.lineplot(data=syn_CDAR_cons.compute_aum_tc())
+sns.lineplot(data=syn_CDAR_risk_cons.compute_aum_tc())
+sns.lineplot(data=syn_Omegamin_cons.compute_aum_tc())
+sns.lineplot(data=syn_Omegamax_cons.compute_aum_tc())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -4490,7 +2772,8 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P3.png")
+plt.savefig("synthetic_P3_costs.png")
+plt.close()
 
 
 # Without costs:
@@ -4500,15 +2783,15 @@ plt.title(
     "Portfolio with cost optimized computed using synthetic returns without costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW, linestyle=(0, (1, 1)), color="black")
-sns.lineplot(data=aum_MVP, linestyle=(0, (5, 5)), color="black")
-sns.lineplot(data=aum_MSR, linestyle=(0, (5, 1)), color="black")
-sns.lineplot(data=aum_syn_CVAR_cons)
-sns.lineplot(data=aum_syn_CVAR_risk_cons)
-sns.lineplot(data=aum_syn_CDAR_cons)
-sns.lineplot(data=aum_syn_CDAR_risk_cons)
-sns.lineplot(data=aum_syn_Omegamin_cons)
-sns.lineplot(data=aum_syn_Omegamax_cons)
+sns.lineplot(data=EW.compute_aum(), linestyle=(0, (1, 1)), color="black")
+sns.lineplot(data=MVP.compute_aum(), linestyle=(0, (5, 5)), color="black")
+sns.lineplot(data=MSR.compute_aum(), linestyle=(0, (5, 1)), color="black")
+sns.lineplot(data=syn_CVAR_cons.compute_aum())
+sns.lineplot(data=syn_CVAR_risk_cons.compute_aum())
+sns.lineplot(data=syn_CDAR_cons.compute_aum())
+sns.lineplot(data=syn_CDAR_risk_cons.compute_aum())
+sns.lineplot(data=syn_Omegamin_cons.compute_aum())
+sns.lineplot(data=syn_Omegamax_cons.compute_aum())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -4531,6 +2814,7 @@ plt.legend(
     ncol=5,
 )
 plt.savefig("synthetic_P3.png")
+plt.close()
 
 ###############################################################################
 ###############################################################################
@@ -4547,7 +2831,6 @@ plt.savefig("synthetic_P3.png")
 ###############################################################################
 ###############################################################################
 ###############################################################################
-
 
 # Minimum risk CVAR:
 
@@ -4573,53 +2856,13 @@ for i in tqdm(range(rw_number), desc="CVAR mint under constraint"):
 del i
 
 
-(
-    aum_CVAR_mint_cons,
-    returns_CVAR_mint_cons,
-    to_CVAR_mint_cons,
-    aum_CVAR_mint_cons_tc,
-    returns_CVAR_mint_cons_tc,
-    corrsp_CVAR_mint_cons,
-    corrbond_CVAR_mint_cons,
-) = portfolio(weight_CVAR_mint_cons)
-
-turnover_plot(to_CVAR_mint_cons, to_CVAR)
-
-
-correlation_plot(
-    corrsp_CVAR_mint_cons,
-    corrbond_CVAR_mint_cons,
-    corrsp_CVAR,
-    corrbond_CVAR,
+CVAR_mint_cons = pf.Portfolio(weight_CVAR_mint_cons, data, name="Corr & Mint - CVAR")
+CVAR_mint_cons.stackplts()
+CVAR_mint_cons.turnover_plot(CVAR.compute_turnover())
+CVAR_mint_cons.correlation_plot(
+    CVAR.compute_correlation(rw_sp), CVAR.compute_correlation(rw_bond)
 )
-
-stackplts(weight_CVAR_mint_cons)
-
-t_CVAR_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_CVAR_mint_cons,
-            aum_CVAR_mint_cons,
-            returns_CVAR_mint_cons,
-            to_CVAR_mint_cons,
-            False,
-        ),
-        performance_measures(
-            weight_CVAR_mint_cons,
-            aum_CVAR_mint_cons_tc,
-            returns_CVAR_mint_cons_tc,
-            to_CVAR_mint_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CVAR_mint_cons.columns = [
-    "Corr & Mint - CVAR - No costs",
-    "Corr & Mint - CVAR - With costs",
-]
-
+t_CVAR_mint_cons = CVAR_mint_cons.compute_table()
 
 # Optimal CVAR:
 
@@ -4669,55 +2912,17 @@ for i in tqdm(range(rw_number), desc="CVAR risk mint optimization under constrai
 del i
 
 
-(
-    aum_CVAR_risk_mint_cons,
-    returns_CVAR_risk_mint_cons,
-    to_CVAR_risk_mint_cons,
-    aum_CVAR_risk_mint_cons_tc,
-    returns_CVAR_risk_mint_cons_tc,
-    corrsp_CVAR_risk_mint_cons,
-    corrbond_CVAR_risk_mint_cons,
-) = portfolio(weight_CVAR_risk_mint_cons)
-
-turnover_plot(to_CVAR_risk_mint_cons, to_CVAR_risk)
-
-correlation_plot(
-    corrsp_CVAR_risk_mint_cons,
-    corrbond_CVAR_risk_mint_cons,
-    corrsp_CVAR_risk,
-    corrbond_CVAR_risk,
+CVAR_risk_mint_cons = pf.Portfolio(
+    weight_CVAR_risk_mint_cons, data, name="Corr & Mint - CVAR risk"
 )
-
-stackplts(weight_CVAR_risk_mint_cons)
-
-t_CVAR_risk_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_CVAR_risk_mint_cons,
-            aum_CVAR_risk_mint_cons,
-            returns_CVAR_risk_mint_cons,
-            to_CVAR_risk_mint_cons,
-            False,
-        ),
-        performance_measures(
-            weight_CVAR_risk_mint_cons,
-            aum_CVAR_risk_mint_cons_tc,
-            returns_CVAR_risk_mint_cons_tc,
-            to_CVAR_risk_mint_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+CVAR_risk_mint_cons.stackplts()
+CVAR_risk_mint_cons.turnover_plot(CVAR_risk.compute_turnover())
+CVAR_risk_mint_cons.correlation_plot(
+    CVAR_risk.compute_correlation(rw_sp), CVAR_risk.compute_correlation(rw_bond)
 )
-t_CVAR_risk_mint_cons.columns = [
-    "Corr & Mint - CVAR risk - No costs",
-    "Corr & Mint - CVAR risk - With costs",
-]
-
+t_CVAR_risk_mint_cons = CVAR_risk_mint_cons.compute_table()
 
 ###############################################################################
-
 
 # Minimum risk CDAR:
 
@@ -4741,54 +2946,13 @@ for i in tqdm(range(rw_number), desc="CDAR mint optimization under constraint"):
 
 del i
 
-
-(
-    aum_CDAR_mint_cons,
-    returns_CDAR_mint_cons,
-    to_CDAR_mint_cons,
-    aum_CDAR_mint_cons_tc,
-    returns_CDAR_mint_cons_tc,
-    corrsp_CDAR_mint_cons,
-    corrbond_CDAR_mint_cons,
-) = portfolio(weight_CDAR_mint_cons)
-
-turnover_plot(to_CDAR_mint_cons, to_CDAR)
-
-correlation_plot(
-    corrsp_CDAR_mint_cons,
-    corrbond_CDAR_mint_cons,
-    corrsp_CDAR,
-    corrbond_CDAR,
+CDAR_mint_cons = pf.Portfolio(weight_CDAR_mint_cons, data, name="Corr & Mint - CDAR")
+CDAR_mint_cons.stackplts()
+CDAR_mint_cons.turnover_plot(CDAR.compute_turnover())
+CDAR_mint_cons.correlation_plot(
+    CDAR.compute_correlation(rw_sp), CDAR.compute_correlation(rw_bond)
 )
-
-
-stackplts(weight_CDAR_mint_cons)
-
-t_CDAR_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_CDAR_mint_cons,
-            aum_CDAR_mint_cons,
-            returns_CDAR_mint_cons,
-            to_CDAR_mint_cons,
-            False,
-        ),
-        performance_measures(
-            weight_CDAR_mint_cons,
-            aum_CDAR_mint_cons_tc,
-            returns_CDAR_mint_cons_tc,
-            to_CDAR_mint_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
-)
-t_CDAR_mint_cons.columns = [
-    "Corr & Mint - CDAR - No costs",
-    "Corr & Mint - CDAR - With costs",
-]
-
+t_CDAR_mint_cons = CDAR_mint_cons.compute_table()
 
 # Optimal CDAR:
 
@@ -4838,55 +3002,17 @@ for i in tqdm(range(rw_number), desc="CDAR risk mint optimization under constrai
 del i
 
 
-(
-    aum_CDAR_risk_mint_cons,
-    returns_CDAR_risk_mint_cons,
-    to_CDAR_risk_mint_cons,
-    aum_CDAR_risk_mint_cons_tc,
-    returns_CDAR_risk_mint_cons_tc,
-    corrsp_CDAR_risk_mint_cons,
-    corrbond_CDAR_risk_mint_cons,
-) = portfolio(weight_CDAR_risk_mint_cons)
-
-turnover_plot(to_CDAR_risk_mint_cons, to_CDAR_risk)
-
-correlation_plot(
-    corrsp_CDAR_risk_mint_cons,
-    corrbond_CDAR_risk_mint_cons,
-    corrsp_CDAR_risk,
-    corrbond_CDAR_risk,
+CDAR_risk_mint_cons = pf.Portfolio(
+    weight_CDAR_risk_mint_cons, data, name="Corr & Mint - CDAR Risk"
 )
-
-stackplts(weight_CDAR_risk_mint_cons)
-
-t_CDAR_risk_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_CDAR_risk_mint_cons,
-            aum_CDAR_risk_mint_cons,
-            returns_CDAR_risk_mint_cons,
-            to_CDAR_risk_mint_cons,
-            False,
-        ),
-        performance_measures(
-            weight_CDAR_risk_mint_cons,
-            aum_CDAR_risk_mint_cons_tc,
-            returns_CDAR_risk_mint_cons_tc,
-            to_CDAR_risk_mint_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+CDAR_risk_mint_cons.stackplts()
+CDAR_risk_mint_cons.turnover_plot(CDAR_risk.compute_turnover())
+CDAR_risk_mint_cons.correlation_plot(
+    CDAR_risk.compute_correlation(rw_sp), CDAR_risk.compute_correlation(rw_bond)
 )
-t_CDAR_risk_mint_cons.columns = [
-    "Corr & Mint - CDAR risk - No costs",
-    "Corr & Mint - CDAR risk - With costs",
-]
-
+t_CDAR_risk_mint_cons = CDAR_risk_mint_cons.compute_table()
 
 ###############################################################################
-
 
 # Minimum risk Omega:
 
@@ -4911,53 +3037,15 @@ for i in tqdm(range(rw_number), desc="Omegamin mint optimization under constrain
 del i
 
 
-(
-    aum_Omegamin_mint_cons,
-    returns_Omegamin_mint_cons,
-    to_Omegamin_mint_cons,
-    aum_Omegamin_mint_cons_tc,
-    returns_Omegamin_mint_cons_tc,
-    corrsp_Omegamin_mint_cons,
-    corrbond_Omegamin_mint_cons,
-) = portfolio(weight_Omegamin_mint_cons)
-
-
-turnover_plot(to_Omegamin_mint_cons, to_Omegamin)
-
-correlation_plot(
-    corrsp_Omegamin_mint_cons,
-    corrbond_Omegamin_mint_cons,
-    corrsp_Omegamin,
-    corrbond_Omegamin,
+Omegamin_mint_cons = pf.Portfolio(
+    weight_Omegamin_mint_cons, data, name="Corr & Mint - Omegamin"
 )
-
-stackplts(weight_Omegamin_mint_cons)
-
-t_Omegamin_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_Omegamin_mint_cons,
-            aum_Omegamin_mint_cons,
-            returns_Omegamin_mint_cons,
-            to_Omegamin_mint_cons,
-            False,
-        ),
-        performance_measures(
-            weight_Omegamin_mint_cons,
-            aum_Omegamin_mint_cons_tc,
-            returns_Omegamin_mint_cons_tc,
-            to_Omegamin_mint_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+Omegamin_mint_cons.stackplts()
+Omegamin_mint_cons.turnover_plot(Omegamin.compute_turnover())
+Omegamin_mint_cons.correlation_plot(
+    Omegamin.compute_correlation(rw_sp), Omegamin.compute_correlation(rw_bond)
 )
-t_Omegamin_mint_cons.columns = [
-    "Corr & Mint - Omegamin - No costs",
-    "Corr & Mint - Omegamin - With costs",
-]
-
+t_Omegamin_mint_cons = Omegamin_mint_cons.compute_table()
 
 # Optimal Omega:
 
@@ -5007,53 +3095,15 @@ for i in tqdm(range(rw_number), desc="Omegamax mint optimization under constrain
 
 del i
 
-(
-    aum_Omegamax_mint_cons,
-    returns_Omegamax_mint_cons,
-    to_Omegamax_mint_cons,
-    aum_Omegamax_mint_cons_tc,
-    returns_Omegamax_mint_cons_tc,
-    corrsp_Omegamax_mint_cons,
-    corrbond_Omegamax_mint_cons,
-) = portfolio(weight_Omegamax_mint_cons)
-
-turnover_plot(to_Omegamax_mint_cons, to_Omegamax)
-
-
-correlation_plot(
-    corrsp_Omegamax_mint_cons,
-    corrbond_Omegamax_mint_cons,
-    corrsp_Omegamax,
-    corrbond_Omegamax,
+Omegamax_mint_cons = pf.Portfolio(
+    weight_Omegamax_mint_cons, data, name="Corr & Mint - Omegamax"
 )
-
-stackplts(weight_Omegamax_mint_cons)
-
-t_Omegamax_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_Omegamax_mint_cons,
-            aum_Omegamax_mint_cons,
-            returns_Omegamax_mint_cons,
-            to_Omegamax_mint_cons,
-            False,
-        ),
-        performance_measures(
-            weight_Omegamax_mint_cons,
-            aum_Omegamax_mint_cons_tc,
-            returns_Omegamax_mint_cons_tc,
-            to_Omegamax_mint_cons,
-            False,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+Omegamax_mint_cons.stackplts()
+Omegamax_mint_cons.turnover_plot(Omegamax.compute_turnover())
+Omegamax_mint_cons.correlation_plot(
+    Omegamax.compute_correlation(rw_sp), Omegamax.compute_correlation(rw_bond)
 )
-t_Omegamax_mint_cons.columns = [
-    "Corr & Mint - Omegamax - No costs",
-    "Corr & Mint - Omegamax - With costs",
-]
-
+t_Omegamax_mint_cons = Omegamax_mint_cons.compute_table()
 
 ###############################################################################
 
@@ -5098,9 +3148,6 @@ t_historical_P4.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter("Performance Measures.xlsx") as writer:
-    t_historical_P4.to_excel(writer, sheet_name="P4 - Historical")
-
 
 # With costs:
 
@@ -5110,15 +3157,15 @@ plt.title(
     "Portfolio with both cost minimization and correlation constraints computed using historical returns with costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW_tc, linestyle=(0, (1, 1)), color="dimgrey")
-sns.lineplot(data=aum_MVP_tc, linestyle=(0, (5, 5)), color="dimgrey")
-sns.lineplot(data=aum_MSR_tc, linestyle=(0, (5, 1)), color="dimgrey")
-sns.lineplot(data=aum_CVAR_mint_cons_tc)
-sns.lineplot(data=aum_CVAR_risk_mint_cons_tc)
-sns.lineplot(data=aum_CDAR_mint_cons_tc)
-sns.lineplot(data=aum_CDAR_risk_mint_cons_tc)
-sns.lineplot(data=aum_Omegamin_mint_cons_tc)
-sns.lineplot(data=aum_Omegamax_mint_cons_tc)
+sns.lineplot(data=EW.compute_aum_tc(), linestyle=(0, (1, 1)), color="dimgrey")
+sns.lineplot(data=MVP.compute_aum_tc(), linestyle=(0, (5, 5)), color="dimgrey")
+sns.lineplot(data=MSR.compute_aum_tc(), linestyle=(0, (5, 1)), color="dimgrey")
+sns.lineplot(data=CVAR_mint_cons.compute_aum_tc())
+sns.lineplot(data=CVAR_risk_mint_cons.compute_aum_tc())
+sns.lineplot(data=CDAR_mint_cons.compute_aum_tc())
+sns.lineplot(data=CDAR_risk_mint_cons.compute_aum_tc())
+sns.lineplot(data=Omegamin_mint_cons.compute_aum_tc())
+sns.lineplot(data=Omegamax_mint_cons.compute_aum_tc())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -5140,7 +3187,8 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P4.png")
+plt.savefig("historical_P4_costs.png")
+plt.close()
 
 
 # Without costs:
@@ -5151,15 +3199,15 @@ plt.title(
     "Portfolio with both cost minimization and correlation constraints computed using historical returns without costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW, linestyle=(0, (1, 1)), color="black")
-sns.lineplot(data=aum_MVP, linestyle=(0, (5, 5)), color="black")
-sns.lineplot(data=aum_MSR, linestyle=(0, (5, 1)), color="black")
-sns.lineplot(data=aum_CVAR_mint_cons)
-sns.lineplot(data=aum_CVAR_risk_mint_cons)
-sns.lineplot(data=aum_CDAR_mint_cons)
-sns.lineplot(data=aum_CDAR_risk_mint_cons)
-sns.lineplot(data=aum_Omegamin_mint_cons)
-sns.lineplot(data=aum_Omegamax_mint_cons)
+sns.lineplot(data=EW.compute_aum(), linestyle=(0, (1, 1)), color="black")
+sns.lineplot(data=MVP.compute_aum(), linestyle=(0, (5, 5)), color="black")
+sns.lineplot(data=MSR.compute_aum(), linestyle=(0, (5, 1)), color="black")
+sns.lineplot(data=CVAR_mint_cons.compute_aum())
+sns.lineplot(data=CVAR_risk_mint_cons.compute_aum())
+sns.lineplot(data=CDAR_mint_cons.compute_aum())
+sns.lineplot(data=CDAR_risk_mint_cons.compute_aum())
+sns.lineplot(data=Omegamin_mint_cons.compute_aum())
+sns.lineplot(data=Omegamax_mint_cons.compute_aum())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -5182,7 +3230,7 @@ plt.legend(
     ncol=5,
 )
 plt.savefig("historical_P4.png")
-
+plt.close()
 
 ###############################################################################
 
@@ -5191,7 +3239,6 @@ plt.savefig("historical_P4.png")
 
 
 ###############################################################################
-
 
 # Minimum risk cvar
 
@@ -5217,61 +3264,21 @@ for i in tqdm(
 
 del i
 
-
-(
-    aum_syn_CVAR_mint_cons,
-    returns_syn_CVAR_mint_cons,
-    to_syn_CVAR_mint_cons,
-    aum_syn_CVAR_mint_cons_tc,
-    returns_syn_CVAR_mint_cons_tc,
-    corrsp_syn_CVAR_mint_cons,
-    corrbond_syn_CVAR_mint_cons,
-) = portfolio_syn(weight_syn_CVAR_mint_cons)
-
-
-turnover_plot(to_syn_CVAR_mint_cons, to_syn_CVAR)
-
-
-correlation_plot(
-    corrsp_syn_CVAR_mint_cons,
-    corrbond_syn_CVAR_mint_cons,
-    corrsp_syn_CVAR,
-    corrbond_syn_CVAR,
+syn_CVAR_mint_cons = pf.Portfolio(
+    weight_syn_CVAR_mint_cons, data, syn=True, name="Corr & Mint - CVAR synth."
 )
-
-stackplts(weight_syn_CVAR_mint_cons)
-
-t_syn_CVAR_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CVAR_mint_cons,
-            aum_syn_CVAR_mint_cons,
-            returns_syn_CVAR_mint_cons,
-            to_syn_CVAR_mint_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CVAR_mint_cons,
-            aum_syn_CVAR_mint_cons_tc,
-            returns_syn_CVAR_mint_cons_tc,
-            to_syn_CVAR_mint_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CVAR_mint_cons.stackplts()
+syn_CVAR_mint_cons.turnover_plot(syn_CVAR.compute_turnover())
+syn_CVAR_mint_cons.correlation_plot(
+    syn_CVAR.compute_correlation_syn(rw_corr_sp),
+    syn_CVAR.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_CVAR_mint_cons.columns = [
-    "Corr & Mint - CVAR synth. - No costs",
-    "Corr & Mint - CVAR synth. - With costs",
-]
-
+t_syn_CVAR_mint_cons = syn_CVAR_mint_cons.compute_table()
 
 # Optimal CVAR:
 
 weight_syn_CVAR_risk_mint_cons = [0] * rw_corr_number
 weight_syn_CVAR_risk_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
-
 
 turnover_penalty = 0.3
 w0 = None
@@ -5317,56 +3324,21 @@ for i in tqdm(
 
 del i
 
-
-(
-    aum_syn_CVAR_risk_mint_cons,
-    returns_syn_CVAR_risk_mint_cons,
-    to_syn_CVAR_risk_mint_cons,
-    aum_syn_CVAR_risk_mint_cons_tc,
-    returns_syn_CVAR_risk_mint_cons_tc,
-    corrsp_syn_CVAR_risk_mint_cons,
-    corrbond_syn_CVAR_risk_mint_cons,
-) = portfolio_syn(weight_syn_CVAR_risk_mint_cons)
-
-turnover_plot(to_syn_CVAR_risk_mint_cons, to_syn_CVAR_risk)
-
-correlation_plot(
-    corrsp_syn_CVAR_risk_mint_cons,
-    corrbond_syn_CVAR_risk_mint_cons,
-    corrsp_syn_CVAR_risk,
-    corrbond_syn_CVAR_risk,
+syn_CVAR_risk_mint_cons = pf.Portfolio(
+    weight_syn_CVAR_risk_mint_cons,
+    data,
+    syn=True,
+    name="Corr & Mint - CVAR Risk synth.",
 )
-
-stackplts(weight_syn_CVAR_risk_mint_cons)
-
-t_syn_CVAR_risk_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CVAR_risk_mint_cons,
-            aum_syn_CVAR_risk_mint_cons,
-            returns_syn_CVAR_risk_mint_cons,
-            to_syn_CVAR_risk_mint_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CVAR_risk_mint_cons,
-            aum_syn_CVAR_risk_mint_cons_tc,
-            returns_syn_CVAR_risk_mint_cons_tc,
-            to_syn_CVAR_risk_mint_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CVAR_risk_mint_cons.stackplts()
+syn_CVAR_risk_mint_cons.turnover_plot(syn_CVAR_risk.compute_turnover())
+syn_CVAR_risk_mint_cons.correlation_plot(
+    syn_CVAR_risk.compute_correlation_syn(rw_corr_sp),
+    syn_CVAR_risk.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_CVAR_risk_mint_cons.columns = [
-    "Corr & Mint - CVAR risk synth. - No costs",
-    "Corr & Mint - CVAR risk synth. - With costs",
-]
-
+t_syn_CVAR_risk_mint_cons = syn_CVAR_risk_mint_cons.compute_table()
 
 ###############################################################################
-
 
 # Minimum risk CDAR:
 
@@ -5392,54 +3364,16 @@ for i in tqdm(
 
 del i
 
-
-(
-    aum_syn_CDAR_mint_cons,
-    returns_syn_CDAR_mint_cons,
-    to_syn_CDAR_mint_cons,
-    aum_syn_CDAR_mint_cons_tc,
-    returns_syn_CDAR_mint_cons_tc,
-    corrsp_syn_CDAR_mint_cons,
-    corrbond_syn_CDAR_mint_cons,
-) = portfolio_syn(weight_syn_CDAR_mint_cons)
-
-turnover_plot(to_syn_CDAR_mint_cons, to_syn_CDAR)
-
-
-correlation_plot(
-    corrsp_syn_CDAR_mint_cons,
-    corrbond_syn_CDAR_mint_cons,
-    corrsp_syn_CDAR,
-    corrbond_syn_CDAR,
+syn_CDAR_mint_cons = pf.Portfolio(
+    weight_syn_CDAR_mint_cons, data, syn=True, name="Corr & Mint - CDAR synth."
 )
-
-stackplts(weight_syn_CDAR_mint_cons)
-
-t_syn_CDAR_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CDAR_mint_cons,
-            aum_syn_CDAR_mint_cons,
-            returns_syn_CDAR_mint_cons,
-            to_syn_CDAR_mint_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CDAR_mint_cons,
-            aum_syn_CDAR_mint_cons_tc,
-            returns_syn_CDAR_mint_cons_tc,
-            to_syn_CDAR_mint_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CDAR_mint_cons.stackplts()
+syn_CDAR_mint_cons.turnover_plot(syn_CDAR.compute_turnover())
+syn_CDAR_mint_cons.correlation_plot(
+    syn_CDAR.compute_correlation_syn(rw_corr_sp),
+    syn_CDAR.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_CDAR_mint_cons.columns = [
-    "Corr & Mint - CDAR synth. - No costs",
-    "Corr & Mint - CDAR synth. - With costs",
-]
-
+t_syn_CDAR_mint_cons = syn_CDAR_mint_cons.compute_table()
 
 # Optimal CDAR:
 
@@ -5491,57 +3425,21 @@ for i in tqdm(
 
 del i
 
-
-(
-    aum_syn_CDAR_risk_mint_cons,
-    returns_syn_CDAR_risk_mint_cons,
-    to_syn_CDAR_risk_mint_cons,
-    aum_syn_CDAR_risk_mint_cons_tc,
-    returns_syn_CDAR_risk_mint_cons_tc,
-    corrsp_syn_CDAR_risk_mint_cons,
-    corrbond_syn_CDAR_risk_mint_cons,
-) = portfolio_syn(weight_syn_CDAR_risk_mint_cons)
-
-turnover_plot(to_syn_CDAR_risk_mint_cons, to_syn_CDAR_risk)
-
-correlation_plot(
-    corrsp_syn_CDAR_risk_mint_cons,
-    corrbond_syn_CDAR_risk_mint_cons,
-    corrsp_syn_CDAR_risk,
-    corrbond_syn_CDAR_risk,
+syn_CDAR_risk_mint_cons = pf.Portfolio(
+    weight_syn_CDAR_risk_mint_cons,
+    data,
+    syn=True,
+    name="Corr & Mint - CDAR Risk synth.",
 )
-
-
-stackplts(weight_syn_CDAR_risk_mint_cons)
-
-t_syn_CDAR_risk_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_CDAR_risk_mint_cons,
-            aum_syn_CDAR_risk_mint_cons,
-            returns_syn_CDAR_risk_mint_cons,
-            to_syn_CDAR_risk_mint_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_CDAR_risk_mint_cons,
-            aum_syn_CDAR_risk_mint_cons_tc,
-            returns_syn_CDAR_risk_mint_cons_tc,
-            to_syn_CDAR_risk_mint_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_CDAR_risk_mint_cons.stackplts()
+syn_CDAR_risk_mint_cons.turnover_plot(syn_CDAR_risk.compute_turnover())
+syn_CDAR_risk_mint_cons.correlation_plot(
+    syn_CDAR_risk.compute_correlation_syn(rw_corr_sp),
+    syn_CDAR_risk.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_CDAR_risk_mint_cons.columns = [
-    "Corr & Mint - CDAR risk synth. - No costs",
-    "Corr & Mint - CDAR risk synth. - With costs",
-]
-
+t_syn_CDAR_risk_mint_cons = syn_CDAR_risk_mint_cons.compute_table()
 
 ###############################################################################
-
 
 # Minimum risk Omega:
 
@@ -5567,54 +3465,16 @@ for i in tqdm(
 
 del i
 
-
-(
-    aum_syn_Omegamin_mint_cons,
-    returns_syn_Omegamin_mint_cons,
-    to_syn_Omegamin_mint_cons,
-    aum_syn_Omegamin_mint_cons_tc,
-    returns_syn_Omegamin_mint_cons_tc,
-    corrsp_syn_Omegamin_mint_cons,
-    corrbond_syn_Omegamin_mint_cons,
-) = portfolio_syn(weight_syn_Omegamin_mint_cons)
-
-
-turnover_plot(to_syn_Omegamin_mint_cons, to_syn_Omegamin)
-
-correlation_plot(
-    corrsp_syn_Omegamin_mint_cons,
-    corrbond_syn_Omegamin_mint_cons,
-    corrsp_syn_Omegamin,
-    corrbond_syn_Omegamin,
+syn_Omegamin_mint_cons = pf.Portfolio(
+    weight_syn_Omegamin_mint_cons, data, syn=True, name="Corr & Mint - Omegamin synth."
 )
-
-stackplts(weight_syn_Omegamin_mint_cons)
-
-t_syn_Omegamin_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_Omegamin_mint_cons,
-            aum_syn_Omegamin_mint_cons,
-            returns_syn_Omegamin_mint_cons,
-            to_syn_Omegamin_mint_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_Omegamin_mint_cons,
-            aum_syn_Omegamin_mint_cons_tc,
-            returns_syn_Omegamin_mint_cons_tc,
-            to_syn_Omegamin_mint_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_Omegamin_mint_cons.stackplts()
+syn_Omegamin_mint_cons.turnover_plot(syn_Omegamin.compute_turnover())
+syn_Omegamin_mint_cons.correlation_plot(
+    syn_Omegamin.compute_correlation_syn(rw_corr_sp),
+    syn_Omegamin.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_Omegamin_mint_cons.columns = [
-    "Corr & Mint - Omegamin synth. - No costs",
-    "Corr & Mint - Omegamin synth. - With costs",
-]
-
+t_syn_Omegamin_mint_cons = syn_Omegamin_mint_cons.compute_table()
 
 # Optimal Omega:
 
@@ -5665,55 +3525,18 @@ for i in tqdm(
 
 del i
 
-
-(
-    aum_syn_Omegamax_mint_cons,
-    returns_syn_Omegamax_mint_cons,
-    to_syn_Omegamax_mint_cons,
-    aum_syn_Omegamax_mint_cons_tc,
-    returns_syn_Omegamax_mint_cons_tc,
-    corrsp_syn_Omegamax_mint_cons,
-    corrbond_syn_Omegamax_mint_cons,
-) = portfolio_syn(weight_syn_Omegamax_mint_cons)
-
-turnover_plot(to_syn_Omegamax_mint_cons, to_syn_Omegamax)
-
-correlation_plot(
-    corrsp_syn_Omegamax_mint_cons,
-    corrbond_syn_Omegamax_mint_cons,
-    corrsp_syn_Omegamax,
-    corrbond_syn_Omegamax,
+syn_Omegamax_mint_cons = pf.Portfolio(
+    weight_syn_Omegamax_mint_cons, data, syn=True, name="Corr & Mint - Omegamax synth."
 )
-
-stackplts(weight_syn_Omegamax_mint_cons)
-
-t_syn_Omegamax_mint_cons = pd.concat(
-    [
-        performance_measures(
-            weight_syn_Omegamax_mint_cons,
-            aum_syn_Omegamax_mint_cons,
-            returns_syn_Omegamax_mint_cons,
-            to_syn_Omegamax_mint_cons,
-            True,
-        ),
-        performance_measures(
-            weight_syn_Omegamax_mint_cons,
-            aum_syn_Omegamax_mint_cons_tc,
-            returns_syn_Omegamax_mint_cons_tc,
-            to_syn_Omegamax_mint_cons,
-            True,
-        ),
-    ],
-    axis=1,
-    ignore_index=True,
+syn_Omegamax_mint_cons.stackplts()
+syn_Omegamax_mint_cons.turnover_plot(syn_Omegamax.compute_turnover())
+syn_Omegamax_mint_cons.correlation_plot(
+    syn_Omegamax.compute_correlation_syn(rw_corr_sp),
+    syn_Omegamax.compute_correlation_syn(rw_corr_bond),
 )
-t_syn_Omegamax_mint_cons.columns = [
-    "Corr & Mint - Omegamax synth. - No costs",
-    "Corr & Mint - Omegamax synth. - With costs",
-]
+t_syn_Omegamax_mint_cons = syn_Omegamax_mint_cons.compute_table()
 
 ###############################################################################
-
 
 # Performance table
 
@@ -5756,10 +3579,6 @@ t_syn_P4.columns = [
     "Optimal Omega - With costs",
 ]
 
-with pd.ExcelWriter("Performance Measures.xlsx") as writer:
-    t_syn_P4.to_excel(writer, sheet_name="P4 - Synthetic")
-
-
 # With costs:
 
 sns.set_palette("tab10")
@@ -5768,15 +3587,15 @@ plt.title(
     "Portfolio with  both cost minimization and correlation constraints computed using synthetic returns with costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW_tc, linestyle=(0, (1, 1)), color="dimgrey")
-sns.lineplot(data=aum_MVP_tc, linestyle=(0, (5, 5)), color="dimgrey")
-sns.lineplot(data=aum_MSR_tc, linestyle=(0, (5, 1)), color="dimgrey")
-sns.lineplot(data=aum_syn_CVAR_mint_cons_tc)
-sns.lineplot(data=aum_syn_CVAR_risk_mint_cons_tc)
-sns.lineplot(data=aum_syn_CDAR_mint_cons_tc)
-sns.lineplot(data=aum_syn_CDAR_risk_mint_cons_tc)
-sns.lineplot(data=aum_syn_Omegamin_mint_cons_tc)
-sns.lineplot(data=aum_syn_Omegamax_mint_cons_tc)
+sns.lineplot(data=EW.compute_aum_tc(), linestyle=(0, (1, 1)), color="dimgrey")
+sns.lineplot(data=MVP.compute_aum_tc(), linestyle=(0, (5, 5)), color="dimgrey")
+sns.lineplot(data=MSR.compute_aum_tc(), linestyle=(0, (5, 1)), color="dimgrey")
+sns.lineplot(data=syn_CVAR_mint_cons.compute_aum_tc())
+sns.lineplot(data=syn_CVAR_risk_mint_cons.compute_aum_tc())
+sns.lineplot(data=syn_CDAR_mint_cons.compute_aum_tc())
+sns.lineplot(data=syn_CDAR_risk_mint_cons.compute_aum_tc())
+sns.lineplot(data=syn_Omegamin_mint_cons.compute_aum_tc())
+sns.lineplot(data=syn_Omegamax_mint_cons.compute_aum_tc())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -5798,8 +3617,8 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P4.png")
-
+plt.savefig("synthetic_P4_costs.png")
+plt.close()
 
 # Without costs:
 
@@ -5809,15 +3628,15 @@ plt.title(
     "Portfolio with both cost minimization and correlation constraints computed using synthetic returns without costs (base level=100)"
 )
 sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
-sns.lineplot(data=aum_EW, linestyle=(0, (1, 1)), color="black")
-sns.lineplot(data=aum_MVP, linestyle=(0, (5, 5)), color="black")
-sns.lineplot(data=aum_MSR, linestyle=(0, (5, 1)), color="black")
-sns.lineplot(data=aum_syn_CVAR_mint_cons)
-sns.lineplot(data=aum_syn_CVAR_risk_mint_cons)
-sns.lineplot(data=aum_syn_CDAR_mint_cons)
-sns.lineplot(data=aum_syn_CDAR_risk_mint_cons)
-sns.lineplot(data=aum_syn_Omegamin_mint_cons)
-sns.lineplot(data=aum_syn_Omegamax_mint_cons)
+sns.lineplot(data=EW.compute_aum(), linestyle=(0, (1, 1)), color="black")
+sns.lineplot(data=MVP.compute_aum(), linestyle=(0, (5, 5)), color="black")
+sns.lineplot(data=MSR.compute_aum(), linestyle=(0, (5, 1)), color="black")
+sns.lineplot(data=syn_CVAR_mint_cons.compute_aum())
+sns.lineplot(data=syn_CVAR_risk_mint_cons.compute_aum())
+sns.lineplot(data=syn_CDAR_mint_cons.compute_aum())
+sns.lineplot(data=syn_CDAR_risk_mint_cons.compute_aum())
+sns.lineplot(data=syn_Omegamin_mint_cons.compute_aum())
+sns.lineplot(data=syn_Omegamax_mint_cons.compute_aum())
 plt.autoscale(tight="x")
 plt.ylabel("Cumulative Returns (%)")
 plt.xlabel("Time")
@@ -5840,6 +3659,7 @@ plt.legend(
     ncol=5,
 )
 plt.savefig("synthetic_P4.png")
+plt.close()
 
 ###############################################################################
 
@@ -5848,7 +3668,6 @@ plt.savefig("synthetic_P4.png")
 
 
 ###############################################################################
-
 
 t_minrisk = pd.concat(
     [
@@ -5884,7 +3703,6 @@ t_minrisk = pd.concat(
     ignore_index=False,
 )
 
-
 t_optimal = pd.concat(
     [
         t_FoF,
@@ -5919,11 +3737,16 @@ t_optimal = pd.concat(
     ignore_index=False,
 )
 
-
 with pd.ExcelWriter("Performance Measures.xlsx") as writer:
+    t_bench.to_excel(writer, sheet_name="Benchmark")
+    t_historical_P1.to_excel(writer, sheet_name="P1 - Historical")
+    t_syn_P1.to_excel(writer, sheet_name="P1 - Synthetic")
+    t_historical_P2.to_excel(writer, sheet_name="P2 - Historical")
+    t_syn_P2.to_excel(writer, sheet_name="P2 - Synthetic")
+    t_historical_P3.to_excel(writer, sheet_name="P3 - Historical")
+    t_syn_P3.to_excel(writer, sheet_name="P3 - Synthetic")
+    t_historical_P4.to_excel(writer, sheet_name="P4 - Historical")
+    t_syn_P4.to_excel(writer, sheet_name="P4 - Synthetic")
     t_minrisk.to_excel(writer, sheet_name="Conservative")
     t_optimal.to_excel(writer, sheet_name="Aggressive")
-del writer
-
-
 ###############################################################################
