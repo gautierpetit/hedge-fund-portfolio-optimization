@@ -116,39 +116,22 @@ Price.drop(columns=["Fund of Funds Composite"], inplace=True)
 ###############################################################################
 ###############################################################################
 
-
 # --- Annualized Mean Return ---
 Returns_mean = (1 + Returns.mean()) ** (12) - 1
-
-
 # --- Annualized Median Return ---
 Returns_med = (1 + Returns.median()) ** (12) - 1
-
-
 # --- Annualized Volatility ---
 Returns_vola = Returns.std() * np.sqrt(12)
-
-
 # --- Annualized Semi Volatility ---
 Returns_semivola = Returns[Returns < 0].std() * np.sqrt(12)
-
-
 # --- Minimum monthly return ---
 Returns_min = Returns.min()
-
-
 # --- Maximum monthly return---
 Returns_max = Returns.max()
-
-
 # --- Skewness ---
 Returns_skew = Returns.skew()
-
-
 # --- Excess Kurtosis ---
 Returns_kurt = Returns.kurt() - 3
-
-
 # ---- Correlation tables ----
 Returns_corr = Returns.corr()
 
@@ -930,7 +913,6 @@ for i in tqdm(range(rw_number), desc="MSR optimization"):
     )
 
 del i
-
 
 MSR = pf.Portfolio(weight_MSR, data, name="MSR")
 MSR.stackplts()
@@ -2521,7 +2503,7 @@ plt.close()
 ###############################################################################
 
 
-#                    Optimization with synthetic returns and constraint on portfolio correlations             (syn + cons)      #
+# Optimization with synthetic returns and constraint on portfolio correlations  (syn + cons)  #
 
 
 ###############################################################################

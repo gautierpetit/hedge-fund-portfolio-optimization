@@ -32,10 +32,6 @@ Rf_mean = Riskfree.mean().iloc[0]
 rf = (Rf_mean + 1) ** (1 / 12) - 1
 
 
-
-
-
-
 ###############################################################################
 
 
@@ -711,8 +707,6 @@ def Omega_max(
     return result.x
 
 
-
-
 class PortfolioData:
     def __init__(
         self,
@@ -743,13 +737,9 @@ class PortfolioData:
         self.returns_syn_bench = returns_syn_bench
 
 
-
-
 # FIXME: Default transaction cost 30bps
 class Portfolio:
-    def __init__(
-        self, weight, data: PortfolioData, tc=0.003, syn=False, name=None
-    ):
+    def __init__(self, weight, data: PortfolioData, tc=0.003, syn=False, name=None):
         """
         Initialize Portfolio with weights, returns, transaction cost, and related data.
         """
@@ -953,7 +943,9 @@ class Portfolio:
         CVaR = cvar(returns, 0.01)  # Note: you need to ensure 'pf' is available.
         CDaR = cdar(returns, 0.01)  # Same here
         SR = (AR - Rf_mean) / SD
-        M_squared = Rf_mean + SR * self.data.bench.iloc[self.data.rw :].std() * np.sqrt(12)
+        M_squared = Rf_mean + SR * self.data.bench.iloc[self.data.rw :].std() * np.sqrt(
+            12
+        )
         Calmar = (AR - Rf_mean) / MDD
 
         if self.syn:
@@ -1124,28 +1116,6 @@ class Portfolio:
         plt.close(fig)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ### Evaluation function helper
 
 
@@ -1177,4 +1147,3 @@ def compare_objects(obj1, obj2, rtol=1e-8, atol=1e-10):
         print(f"Max diff calculation error: {e}")
 
     print("==========================")
-
