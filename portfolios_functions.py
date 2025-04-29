@@ -87,6 +87,10 @@ def cdar(returns, alpha):
     n = len(sorted_drawdowns)
     index = int(np.floor(alpha * n))
 
+    # Avoid empty slice or all-zero drawdowns
+    if index == 0 or np.all(sorted_drawdowns[:index] == 0):
+        return 1e-6  # small non-zero value to avoid division by zero
+
     cdar = -np.mean(sorted_drawdowns[:index])
 
     return cdar

@@ -850,16 +850,22 @@ class Portfolio:
 
         # Set useful indices once
         self.index_full = self.data.Returns.iloc[self.data.rw - 1 :].index
-        self.index_weight = self.data.Returns.iloc[self.data.rw:].index
+        self.index_short = self.data.Returns.iloc[self.data.rw:].index
         self.index_correlation = self.data.Returns.iloc[self.data.rw : self.data.rw + self.data.rw_number].index
+        
+        self.index_full_syn = self.data.Returns.iloc[self.data.rw:].index
+        self.index_short_syn = self.data.Returns.iloc[self.data.rw+1:].index
         self.index_correlation_syn = self.data.Returns.iloc[self.data.rw + 1 : self.data.rw + self.data.rw_corr_number + 1].index
+    
     def compute_aum(self):
+
         aum = pd.Series(
             data=[100] * (len(self.weight) + 1),
-            index=self.index_full,
+            index=self.index_full_syn if self.syn else self.index_full,
             name="AUM",
             dtype=float,
         )
+        
         for i, w in enumerate(self.weight):
             columns_idx = self.data.Returns.columns.get_indexer(self.data.rw_returns[i].columns)
             returns_row = self.data.Returns.iloc[self.data.rw + i, columns_idx]
@@ -869,7 +875,7 @@ class Portfolio:
     def compute_return(self):
         returns = pd.Series(
             data=[0] * (len(self.weight) + 1),
-            index=self.index_full,
+            index=self.index_full_syn if self.syn else self.index_full,
             name="Return",
             dtype=float,
         )
@@ -882,7 +888,7 @@ class Portfolio:
     def compute_turnover(self):
         to = pd.Series(
             data=[0] * len(self.weight),
-            index=self.index_weight,
+            index=self.index_short_syn if self.syn else self.index_short,
             name="Turnover",
             dtype=float,
         )
@@ -903,7 +909,7 @@ class Portfolio:
         turnover = self.compute_turnover()
         aum_tc = pd.Series(
             data=[100] * (len(self.weight) + 1),
-            index=self.index_full,
+            index=self.index_full_syn if self.syn else self.index_full,
             name="AUM",
             dtype=float,
         )
@@ -918,7 +924,7 @@ class Portfolio:
         turnover = self.compute_turnover()
         returns_tc = pd.Series(
             data=[0] * (len(self.weight) + 1),
-            index=self.index_full,
+            index=self.index_full_syn if self.syn else self.index_full,
             name="Return",
             dtype=float,
         )
@@ -931,7 +937,7 @@ class Portfolio:
     def compute_correlation(self, corr_data):
         correl = pd.Series(
             data=[np.nan] * self.data.rw_number,
-            index=self.index_correlation,
+            index=self.index_correlation_syn if self.syn else self.index_correlation,
             name="Correlation",
             dtype=float,
         )
@@ -943,7 +949,7 @@ class Portfolio:
 
         correl = pd.Series(
             data=[np.nan] * self.data.rw_corr_number,
-             index=self.index_correlation_syn,
+             index=self.index_correlation_syn if self.syn else self.index_correlation,
             name="Syn_Correlation",
             dtype=float,
         )
@@ -957,7 +963,7 @@ class Portfolio:
         """
         Compute all portfolio series and return them
         """
-        syn = self.syn
+        
 
         aum = self.compute_aum()
         returns = self.compute_return()
@@ -965,7 +971,7 @@ class Portfolio:
         aum_tc = self.compute_aum_tc()
         returns_tc = self.compute_return_tc()
 
-        if syn:
+        if self.syn:
             correl_sp = self.compute_correlation_syn(self.data.rw_corr_sp)
             correl_bond = self.compute_correlation_syn(self.data.rw_corr_bond)            
                   
@@ -1007,7 +1013,7 @@ class Portfolio:
         Computes performance measures and returns a pandas Series.
         """
 
-        syn = self.syn
+        
 
         if tc:
             aum = self.compute_aum_tc()
@@ -1028,7 +1034,7 @@ class Portfolio:
         M_squared = Rf_mean + SR * bench.iloc[self.data.rw :].std() * np.sqrt(12)
         Calmar = (AR - Rf_mean) / MDD
 
-        if syn:
+        if self.syn:
             R_squared = self._r_squared(returns, returns_syn_bench)
             CORR_SP = self.compute_correlation_syn(self.data.rw_corr_sp).mean()
             CORR_BOND = self.compute_correlation_syn(self.data.rw_corr_bond).mean()
@@ -4174,7 +4180,7 @@ sns.lineplot(data=aum_FoF, linestyle=(0, (1, 5)), color="dimgrey")
 sns.lineplot(data=EW.compute_aum_tc(), linestyle=(0, (1, 1)), color="dimgrey")
 sns.lineplot(data=MVP.compute_aum_tc(), linestyle=(0, (5, 5)), color="dimgrey")
 sns.lineplot(data=MSR.compute_aum_tc(), linestyle=(0, (5, 1)), color="dimgrey")
-sns.lineplot(data=syn_CVAR_mint_cons.compute_aum.compute_aum_tc()())
+sns.lineplot(data=syn_CVAR_mint_cons.compute_aum_tc())
 sns.lineplot(data=syn_CVAR_risk_mint_cons.compute_aum_tc())
 sns.lineplot(data=syn_CDAR_mint_cons.compute_aum_tc())
 sns.lineplot(data=syn_CDAR_risk_mint_cons.compute_aum_tc())
