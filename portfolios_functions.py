@@ -707,6 +707,12 @@ def Omega_max(
     return result.x
 
 
+def init_weights_mint(rw_returns):
+    weights = [0] * len(rw_returns)
+    weights[0] = np.ones(len(rw_returns[0].columns)) / len(rw_returns[0].columns)
+    return weights
+
+
 class PortfolioData:
     def __init__(
         self,

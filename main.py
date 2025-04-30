@@ -37,7 +37,7 @@ import portfolios_functions as pf
 
 Price = pd.read_excel(
     "Data/HFRI_full.xlsx",
-    sheet_name="Data",
+    sheet_name="Indices",
     index_col=0,
     parse_dates=True,
     date_format="%b-%y",
@@ -706,53 +706,38 @@ bench_corr = pd.read_excel(
 
 bench_corr.index = pd.to_datetime(bench_corr.index, format="%Y-%m-%d")
 bench_corr = bench_corr.astype(float)
-bench_corr.drop(index=bench_corr[-1:].index, inplace=True)
+bench_corr.drop(index=bench_corr.iloc[-1:].index, inplace=True)
 
 bench_returns = bench_corr / bench_corr.shift(1) - 1
-bench_returns.drop(index=bench_returns[:1].index, inplace=True)
+bench_returns.drop(index=bench_returns.iloc[:1].index, inplace=True)
 
 
-rw_sp = [0] * rw_number
-rw_bond = [0] * rw_number
-# Compute the correlation for each column in a rolling window form
+rw_sp = []
+rw_bond = []
+
+spx = bench_returns["SPX - Adj Close"]
+bond = bench_returns[" ICE BofA US Corporate Index Total Return"]
+
 for i in range(rw_number):
-    rw_sp[i] = pd.Series(
-        data=[
-            pd.concat(
-                [
-                    Returns[col].iloc[i : i + rw],
-                    bench_returns["SPX - Adj Close"].iloc[i : i + rw],
-                ],
-                axis=1,
-                ignore_index=False,
-            )
-            .corr()
-            .iloc[0][1]
-            for col in Returns.columns
-        ],
-        index=Returns.columns,
-        name=Returns.iloc[i + rw].name,
-    )
-    rw_bond[i] = pd.Series(
-        data=[
-            pd.concat(
-                [
-                    Returns[col].iloc[i : i + rw],
-                    bench_returns[" ICE BofA US Corporate Index Total Return"].iloc[
-                        i : i + rw
-                    ],
-                ],
-                axis=1,
-                ignore_index=False,
-            )
-            .corr()
-            .iloc[0][1]
-            for col in Returns.columns
-        ],
-        index=Returns.columns,
-        name=Returns.iloc[i + rw].name,
-    )
-del i
+    name = Returns.index[i + rw]
+
+    # SP correlations
+    sp_corrs = [
+        pd.concat([Returns[col].iloc[i : i + rw], spx.iloc[i : i + rw]], axis=1)
+        .corr()
+        .iloc[0, 1]
+        for col in Returns.columns
+    ]
+    rw_sp.append(pd.Series(data=sp_corrs, index=Returns.columns, name=name))
+
+    # Bond correlations
+    bond_corrs = [
+        pd.concat([Returns[col].iloc[i : i + rw], bond.iloc[i : i + rw]], axis=1)
+        .corr()
+        .iloc[0, 1]
+        for col in Returns.columns
+    ]
+    rw_bond.append(pd.Series(data=bond_corrs, index=Returns.columns, name=name))
 
 
 for i in range(rw_number):
@@ -1495,20 +1480,17 @@ rw_number = len(Returns) - rw
 ###############################################################################
 
 # Minimum risk CVAR:
-
-weight_CVAR_mint = [0] * rw_number
-weight_CVAR_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
-
+weight_CVAR_mint = pf.init_weights_mint(rw_returns)
 
 for i in tqdm(range(rw_number), desc="CVAR mint"):
+    prev = weight_CVAR_mint[i - 1] if i > 0 else weight_CVAR_mint[0]
     weight_CVAR_mint[i] = pd.DataFrame(
-        data=pf.CVAR(rw_returns[i], np.array(weight_CVAR_mint[i - 1]), 0.0005),
+        data=pf.CVAR(rw_returns[i], np.array(prev), 0.0005),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
 
 del i
-
 
 CVAR_mint = pf.Portfolio(weight_CVAR_mint, data, name="Min t - CVAR")
 CVAR_mint.stackplts()
@@ -1517,16 +1499,14 @@ t_CVAR_mint = CVAR_mint.compute_table()
 
 # Optimal CVAR:
 
-weight_CVAR_risk_mint = [0] * rw_number
-weight_CVAR_risk_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_CVAR_risk_mint = pf.init_weights_mint(rw_returns)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="CVAR risk mint optimization"):
+    prev = weight_CVAR_risk_mint[i - 1] if i > 0 else weight_CVAR_risk_mint[0]
     weight_CVAR_risk_mint[i] = pd.DataFrame(
-        data=pf.CVAR_risk(
-            rw_returns[i], np.array(weight_CVAR_risk_mint[i - 1]), turnover_penalty
-        ),  # 0.07
+        data=pf.CVAR_risk(rw_returns[i], np.array(prev), turnover_penalty),  # 0.07
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -1566,12 +1546,12 @@ t_CVAR_risk_mint = CVAR_risk_mint.compute_table()
 
 # Minimum risk CDAR:
 
-weight_CDAR_mint = [0] * rw_number
-weight_CDAR_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_CDAR_mint = pf.init_weights_mint(rw_returns)
 
 for i in tqdm(range(rw_number), desc="CDAR mint optimization"):
+    prev = weight_CDAR_mint[i - 1] if i > 0 else weight_CDAR_mint[0]
     weight_CDAR_mint[i] = pd.DataFrame(
-        data=pf.CDAR(rw_returns[i], np.array(weight_CDAR_mint[i - 1]), 0.001),
+        data=pf.CDAR(rw_returns[i], np.array(prev), 0.001),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -1585,16 +1565,14 @@ t_CDAR_mint = CDAR_mint.compute_table()
 
 # Optimal CDAR:
 
-weight_CDAR_risk_mint = [0] * rw_number
-weight_CDAR_risk_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_CDAR_risk_mint = pf.init_weights_mint(rw_returns)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="CDAR risk mint optimization"):
+    prev = weight_CDAR_risk_mint[i - 1] if i > 0 else weight_CDAR_risk_mint[0]
     weight_CDAR_risk_mint[i] = pd.DataFrame(
-        data=pf.CDAR_risk(
-            rw_returns[i], np.array(weight_CDAR_risk_mint[i - 1]), turnover_penalty
-        ),
+        data=pf.CDAR_risk(rw_returns[i], np.array(prev), turnover_penalty),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -1636,12 +1614,12 @@ t_CDAR_risk_mint = CDAR_risk_mint.compute_table()
 
 # Minimum risk Omega:
 
-weight_Omegamin_mint = [0] * rw_number
-weight_Omegamin_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_Omegamin_mint = pf.init_weights_mint(rw_returns)
 
 for i in tqdm(range(rw_number), desc="Omegamin mint optimization"):
+    prev = weight_Omegamin_mint[i - 1] if i > 0 else weight_Omegamin_mint[0]
     weight_Omegamin_mint[i] = pd.DataFrame(
-        data=pf.Omega_min(rw_returns[i], np.array(weight_Omegamin_mint[i - 1]), 0.0002),
+        data=pf.Omega_min(rw_returns[i], np.array(prev), 0.0002),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -1656,16 +1634,14 @@ t_Omegamin_mint = Omegamin_mint.compute_table()
 
 # Optimal Omega:
 
-weight_Omegamax_mint = [0] * rw_number
-weight_Omegamax_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_Omegamax_mint = pf.init_weights_mint(rw_returns)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="Omegamax mint optimization"):
+    prev = weight_Omegamax_mint[i - 1] if i > 0 else weight_Omegamax_mint[0]
     weight_Omegamax_mint[i] = pd.DataFrame(
-        data=pf.Omega_max(
-            rw_returns[i], np.array(weight_Omegamax_mint[i - 1]), turnover_penalty
-        ),
+        data=pf.Omega_max(rw_returns[i], np.array(prev), turnover_penalty),
         columns=Returns.iloc[i + rw : i + rw + 1].index,
         index=rw_returns[i].columns,
     )
@@ -1841,12 +1817,12 @@ plt.close()
 
 # Minimum risk cvar
 
-weight_syn_CVAR_mint = [0] * rw_corr_number
-weight_syn_CVAR_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_syn_CVAR_mint = pf.init_weights_mint(rw_corr_number)
 
 for i in tqdm(range(rw_corr_number), desc="syn CVAR mint optimization"):
+    prev = weight_syn_CVAR_mint[i - 1] if i > 0 else weight_syn_CVAR_mint[0]
     weight_syn_CVAR_mint[i] = pd.DataFrame(
-        data=pf.CVAR(rw_corr_returns[i], np.array(weight_syn_CVAR_mint[i - 1]), 0.0005),
+        data=pf.CVAR(rw_corr_returns[i], np.array(prev), 0.0005),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
         index=rw_corr_returns[i].columns,
     )
@@ -1862,18 +1838,16 @@ t_syn_CVAR_mint = syn_CVAR_mint.compute_table()
 
 # Optimal CVAR:
 
-weight_syn_CVAR_risk_mint = [0] * rw_corr_number
-weight_syn_CVAR_risk_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
-
+weight_syn_CVAR_risk_mint = pf.init_weights_mint(rw_corr_number)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_corr_number), desc="syn CVAR risk mint optimization"):
-
+    prev = weight_syn_CVAR_risk_mint[i - 1] if i > 0 else weight_syn_CVAR_risk_mint[0]
     weight_syn_CVAR_risk_mint[i] = pd.DataFrame(
         data=pf.CVAR_risk(
             rw_corr_returns[i],
-            np.array(weight_syn_CVAR_risk_mint[i - 1]),
+            np.array(prev),
             turnover_penalty,
         ),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
@@ -1917,12 +1891,12 @@ t_syn_CVAR_risk_mint = syn_CVAR_risk_mint.compute_table()
 
 # Minimum risk CDAR:
 
-weight_syn_CDAR_mint = [0] * rw_corr_number
-weight_syn_CDAR_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_syn_CDAR_mint = pf.init_weights_mint(rw_corr_number)
 
 for i in tqdm(range(rw_corr_number), desc="syn CDAR mint optimization"):
+    prev = weight_syn_CDAR_mint[i - 1] if i > 0 else weight_syn_CDAR_mint[0]
     weight_syn_CDAR_mint[i] = pd.DataFrame(
-        data=pf.CDAR(rw_corr_returns[i], np.array(weight_syn_CDAR_mint[i - 1]), 0.001),
+        data=pf.CDAR(rw_corr_returns[i], np.array(prev), 0.001),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
         index=rw_corr_returns[i].columns,
     )
@@ -1939,16 +1913,16 @@ t_syn_CDAR_mint = syn_CDAR_mint.compute_table()
 
 # Optimal CDAR:
 
-weight_syn_CDAR_risk_mint = [0] * rw_corr_number
-weight_syn_CDAR_risk_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_syn_CDAR_risk_mint = pf.init_weights_mint(rw_corr_number)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_corr_number), desc="syn CDAR risk mint optimization"):
+    prev = weight_syn_CDAR_risk_mint[i - 1] if i > 0 else weight_syn_CDAR_risk_mint[0]
     weight_syn_CDAR_risk_mint[i] = pd.DataFrame(
         data=pf.CDAR_risk(
             rw_corr_returns[i],
-            np.array(weight_syn_CDAR_risk_mint[i - 1]),
+            np.array(prev),
             turnover_penalty,
         ),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
@@ -1992,14 +1966,12 @@ t_syn_CDAR_risk_mint = syn_CDAR_risk_mint.compute_table()
 
 # Minimum risk Omega:
 
-weight_syn_Omegamin_mint = [0] * rw_corr_number
-weight_syn_Omegamin_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_syn_Omegamin_mint = pf.init_weights_mint(rw_corr_number)
 
 for i in tqdm(range(rw_corr_number), desc="syn Omegamin mint optimization"):
+    prev = weight_syn_Omegamin_mint[i - 1] if i > 0 else weight_syn_Omegamin_mint[0]
     weight_syn_Omegamin_mint[i] = pd.DataFrame(
-        data=pf.Omega_min(
-            rw_corr_returns[i], np.array(weight_syn_Omegamin_mint[i - 1]), 0.0002
-        ),
+        data=pf.Omega_min(rw_corr_returns[i], np.array(prev), 0.0002),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
         index=rw_corr_returns[i].columns,
     )
@@ -2015,16 +1987,16 @@ t_syn_Omegamin_mint = syn_Omegamin_mint.compute_table()
 
 # Optimal Omega:
 
-weight_syn_Omegamax_mint = [0] * rw_corr_number
-weight_syn_Omegamax_mint[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_syn_Omegamax_mint = pf.init_weights_mint(rw_corr_number)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_corr_number), desc="syn Omegamax mint optimization"):
+    prev = weight_syn_Omegamax_mint[i - 1] if i > 0 else weight_syn_Omegamax_mint[0]
     weight_syn_Omegamax_mint[i] = pd.DataFrame(
         data=pf.Omega_max(
             rw_corr_returns[i],
-            np.array(weight_syn_Omegamax_mint[i - 1]),
+            np.array(prev),
             turnover_penalty,
         ),
         columns=Returns.iloc[i + rw + 1 : i + rw + 2].index,
@@ -2834,15 +2806,14 @@ plt.close()
 
 # Minimum risk CVAR:
 
-weight_CVAR_mint_cons = [0] * rw_number
-weight_CVAR_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
-
+weight_CVAR_mint_cons = pf.init_weights_mint(rw_number)
 
 for i in tqdm(range(rw_number), desc="CVAR mint under constraint"):
+    prev = weight_CVAR_mint_cons[i - 1] if i > 0 else weight_CVAR_mint_cons[0]
     weight_CVAR_mint_cons[i] = pd.DataFrame(
         data=pf.CVAR(
             rw_returns[i],
-            np.array(weight_CVAR_mint_cons[i - 1]),
+            np.array(prev),
             0.0005,
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -2866,16 +2837,16 @@ t_CVAR_mint_cons = CVAR_mint_cons.compute_table()
 
 # Optimal CVAR:
 
-weight_CVAR_risk_mint_cons = [0] * rw_number
-weight_CVAR_risk_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_CVAR_risk_mint_cons = pf.init_weights_mint(rw_number)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="CVAR risk mint optimization under constraint"):
+    prev = weight_CVAR_risk_mint_cons[i - 1] if i > 0 else weight_CVAR_risk_mint_cons[0]
     weight_CVAR_risk_mint_cons[i] = pd.DataFrame(
         data=pf.CVAR_risk(
             rw_returns[i],
-            np.array(weight_CVAR_risk_mint_cons[i - 1]),
+            np.array(prev),
             turnover_penalty,
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -2926,14 +2897,14 @@ t_CVAR_risk_mint_cons = CVAR_risk_mint_cons.compute_table()
 
 # Minimum risk CDAR:
 
-weight_CDAR_mint_cons = [0] * rw_number
-weight_CDAR_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_CDAR_mint_cons = pf.init_weights_mint(rw_number)
 
 for i in tqdm(range(rw_number), desc="CDAR mint optimization under constraint"):
+    prev = weight_CDAR_mint_cons[i - 1] if i > 0 else weight_CDAR_mint_cons[0]
     weight_CDAR_mint_cons[i] = pd.DataFrame(
         data=pf.CDAR(
             rw_returns[i],
-            np.array(weight_CDAR_mint_cons[i - 1]),
+            np.array(prev),
             0.001,
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -2956,16 +2927,16 @@ t_CDAR_mint_cons = CDAR_mint_cons.compute_table()
 
 # Optimal CDAR:
 
-weight_CDAR_risk_mint_cons = [0] * rw_number
-weight_CDAR_risk_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_CDAR_risk_mint_cons = pf.init_weights_mint(rw_number)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="CDAR risk mint optimization under constraint"):
+    prev = weight_CDAR_risk_mint_cons[i - 1] if i > 0 else weight_CDAR_risk_mint_cons[0]
     weight_CDAR_risk_mint_cons[i] = pd.DataFrame(
         data=pf.CDAR_risk(
             rw_returns[i],
-            np.array(weight_CDAR_risk_mint_cons[i - 1]),
+            np.array(prev),
             turnover_penalty,
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -3016,14 +2987,14 @@ t_CDAR_risk_mint_cons = CDAR_risk_mint_cons.compute_table()
 
 # Minimum risk Omega:
 
-weight_Omegamin_mint_cons = [0] * rw_number
-weight_Omegamin_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_Omegamin_mint_cons = pf.init_weights_mint(rw_number)
 
 for i in tqdm(range(rw_number), desc="Omegamin mint optimization under constraint"):
+    prev = weight_Omegamin_mint_cons[i - 1] if i > 0 else weight_Omegamin_mint_cons[0]
     weight_Omegamin_mint_cons[i] = pd.DataFrame(
         data=pf.Omega_min(
             rw_returns[i],
-            np.array(weight_Omegamin_mint_cons[i - 1]),
+            np.array(prev),
             0.0002,
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -3049,16 +3020,16 @@ t_Omegamin_mint_cons = Omegamin_mint_cons.compute_table()
 
 # Optimal Omega:
 
-weight_Omegamax_mint_cons = [0] * rw_number
-weight_Omegamax_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_Omegamax_mint_cons = pf.init_weights_mint(rw_number)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(range(rw_number), desc="Omegamax mint optimization under constraint"):
+    prev = weight_Omegamax_mint_cons[i - 1] if i > 0 else weight_Omegamax_mint_cons[0]
     weight_Omegamax_mint_cons[i] = pd.DataFrame(
         data=pf.Omega_max(
             rw_returns[i],
-            np.array(weight_Omegamax_mint_cons[i - 1]),
+            np.array(prev),
             turnover_penalty,
             corr_sp=rw_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -3242,16 +3213,16 @@ plt.close()
 
 # Minimum risk cvar
 
-weight_syn_CVAR_mint_cons = [0] * rw_corr_number
-weight_syn_CVAR_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_syn_CVAR_mint_cons = pf.init_weights_mint(rw_corr_number)
 
 for i in tqdm(
     range(rw_corr_number), desc="syn CVAR mint optimization under constraint"
 ):
+    prev = weight_syn_CVAR_mint_cons[i - 1] if i > 0 else weight_syn_CVAR_mint_cons[0]
     weight_syn_CVAR_mint_cons[i] = pd.DataFrame(
         data=pf.CVAR(
             rw_corr_returns[i],
-            np.array(weight_syn_CVAR_mint_cons[i - 1]),
+            np.array(prev),
             0.0005,
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -3277,18 +3248,22 @@ t_syn_CVAR_mint_cons = syn_CVAR_mint_cons.compute_table()
 
 # Optimal CVAR:
 
-weight_syn_CVAR_risk_mint_cons = [0] * rw_corr_number
-weight_syn_CVAR_risk_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_syn_CVAR_risk_mint_cons = pf.init_weights_mint(rw_corr_number)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(
     range(rw_corr_number), desc="syn CVAR risk mint optimization under constraint"
 ):
+    prev = (
+        weight_syn_CVAR_risk_mint_cons[i - 1]
+        if i > 0
+        else weight_syn_CVAR_risk_mint_cons[0]
+    )
     weight_syn_CVAR_risk_mint_cons[i] = pd.DataFrame(
         data=pf.CVAR_risk(
             rw_corr_returns[i],
-            np.array(weight_syn_CVAR_risk_mint_cons[i - 1]),
+            np.array(prev),
             turnover_penalty,
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -3342,16 +3317,16 @@ t_syn_CVAR_risk_mint_cons = syn_CVAR_risk_mint_cons.compute_table()
 
 # Minimum risk CDAR:
 
-weight_syn_CDAR_mint_cons = [0] * rw_corr_number
-weight_syn_CDAR_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_syn_CDAR_mint_cons = pf.init_weights_mint(rw_corr_number)
 
 for i in tqdm(
     range(rw_corr_number), desc="syn CDAR mint optimization under constraint"
 ):
+    prev = weight_syn_CDAR_mint_cons[i - 1] if i > 0 else weight_syn_CDAR_mint_cons[0]
     weight_syn_CDAR_mint_cons[i] = pd.DataFrame(
         data=pf.CDAR(
             rw_corr_returns[i],
-            np.array(weight_syn_CDAR_mint_cons[i - 1]),
+            np.array(prev),
             0.001,
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -3377,18 +3352,22 @@ t_syn_CDAR_mint_cons = syn_CDAR_mint_cons.compute_table()
 
 # Optimal CDAR:
 
-weight_syn_CDAR_risk_mint_cons = [0] * rw_corr_number
-weight_syn_CDAR_risk_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_syn_CDAR_risk_mint_cons = pf.init_weights_mint(rw_corr_number)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(
     range(rw_corr_number), desc="syn CDAR risk mint optimization under constraint"
 ):
+    prev = (
+        weight_syn_CDAR_risk_mint_cons[i - 1]
+        if i > 0
+        else weight_syn_CDAR_risk_mint_cons[0]
+    )
     weight_syn_CDAR_risk_mint_cons[i] = pd.DataFrame(
         data=pf.CDAR_risk(
             rw_corr_returns[i],
-            np.array(weight_syn_CDAR_risk_mint_cons[i - 1]),
+            np.array(prev),
             turnover_penalty,
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -3443,16 +3422,20 @@ t_syn_CDAR_risk_mint_cons = syn_CDAR_risk_mint_cons.compute_table()
 
 # Minimum risk Omega:
 
-weight_syn_Omegamin_mint_cons = [0] * rw_corr_number
-weight_syn_Omegamin_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_syn_Omegamin_mint_cons = pf.init_weights_mint(rw_corr_number)
 
 for i in tqdm(
     range(rw_corr_number), desc="syn Omegamin mint optimization under constraint"
 ):
+    prev = (
+        weight_syn_Omegamin_mint_cons[i - 1]
+        if i > 0
+        else weight_syn_Omegamin_mint_cons[0]
+    )
     weight_syn_Omegamin_mint_cons[i] = pd.DataFrame(
         data=pf.Omega_min(
             rw_corr_returns[i],
-            np.array(weight_syn_Omegamin_mint_cons[i - 1]),
+            np.array(prev),
             0.0002,
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -3478,18 +3461,22 @@ t_syn_Omegamin_mint_cons = syn_Omegamin_mint_cons.compute_table()
 
 # Optimal Omega:
 
-weight_syn_Omegamax_mint_cons = [0] * rw_corr_number
-weight_syn_Omegamax_mint_cons[-1] = [0] * len(Returns.iloc[rw][rw_returns[0].columns])
+weight_syn_Omegamax_mint_cons = pf.init_weights_mint(rw_corr_number)
 
 turnover_penalty = 0.3
 w0 = None
 for i in tqdm(
     range(rw_corr_number), desc="syn Omegamax mint optimization under constraint"
 ):
+    prev = (
+        weight_syn_Omegamax_mint_cons[i - 1]
+        if i > 0
+        else weight_syn_Omegamax_mint_cons[0]
+    )
     weight_syn_Omegamax_mint_cons[i] = pd.DataFrame(
         data=pf.Omega_max(
             rw_corr_returns[i],
-            np.array(weight_syn_Omegamax_mint_cons[i - 1]),
+            np.array(prev),
             5,
             corr_sp=rw_corr_sp[i],
             maxcorr_sp=MaxCorrelationSP,
@@ -3750,3 +3737,9 @@ with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_minrisk.to_excel(writer, sheet_name="Conservative")
     t_optimal.to_excel(writer, sheet_name="Aggressive")
 ###############################################################################
+
+
+# TODO: - compare Excel outputs to make sure code is correct
+#       - clean up graph organisation (delete first then change location and run code again)
+
+# should be completely done after that
