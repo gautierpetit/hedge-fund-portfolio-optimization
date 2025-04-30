@@ -363,7 +363,7 @@ plt.legend(Returns.columns, loc="upper center", bbox_to_anchor=(0.5, -0.06), nco
 plt.autoscale(tight="x")
 plt.ylabel("Index returns")
 plt.xlabel("Time")
-plt.savefig("Returns.png")
+plt.savefig("Graphs/Returns.png")
 plt.close()
 
 Price.plot(figsize=(16, 9))
@@ -373,7 +373,7 @@ plt.xlabel("Time")
 plt.ylim(0, 30000)
 plt.legend(Price.columns, loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=5)
 plt.title("Prices of of HFRI indices")
-plt.savefig("Price.png")
+plt.savefig("Graphs/Price.png")
 plt.close()
 
 
@@ -944,7 +944,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=4,
 )
-plt.savefig("Benchmark.png")
+plt.savefig("Graphs/Benchmark.png")
 plt.close()
 
 
@@ -1173,7 +1173,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P1_costs.png")
+plt.savefig("Graphs/historical_P1_costs.png")
 plt.close()
 
 
@@ -1213,7 +1213,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P1.png")
+plt.savefig("Graphs/historical_P1.png")
 plt.close()
 
 ###############################################################################
@@ -1417,7 +1417,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P1_costs.png")
+plt.savefig("Graphs/synthetic_P1_costs.png")
 plt.close()
 
 
@@ -1457,7 +1457,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P1.png")
+plt.savefig("Graphs/synthetic_P1.png")
 plt.close()
 
 
@@ -1760,7 +1760,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P2_costs.png")
+plt.savefig("Graphs/historical_P2_costs.png")
 plt.close()
 
 
@@ -1802,7 +1802,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P2.png")
+plt.savefig("Graphs/historical_P2.png")
 plt.close()
 
 
@@ -2117,7 +2117,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P2_costs.png")
+plt.savefig("Graphs/synthetic_P2_costs.png")
 plt.close()
 
 
@@ -2159,7 +2159,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P2.png")
+plt.savefig("Graphs/synthetic_P2.png")
 plt.close()
 
 
@@ -2426,7 +2426,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P3_costs.png")
+plt.savefig("Graphs/historical_P3_costs.png")
 plt.close()
 
 
@@ -2468,7 +2468,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P3.png")
+plt.savefig("Graphs/historical_P3.png")
 plt.close()
 
 
@@ -2744,7 +2744,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P3_costs.png")
+plt.savefig("Graphs/synthetic_P3_costs.png")
 plt.close()
 
 
@@ -2785,7 +2785,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P3.png")
+plt.savefig("Graphs/synthetic_P3.png")
 plt.close()
 
 ###############################################################################
@@ -3158,7 +3158,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P4_costs.png")
+plt.savefig("Graphs/historical_P4_costs.png")
 plt.close()
 
 
@@ -3200,7 +3200,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("historical_P4.png")
+plt.savefig("Graphs/historical_P4.png")
 plt.close()
 
 ###############################################################################
@@ -3604,7 +3604,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P4_costs.png")
+plt.savefig("Graphs/synthetic_P4_costs.png")
 plt.close()
 
 # Without costs:
@@ -3645,7 +3645,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("synthetic_P4.png")
+plt.savefig("Graphs/synthetic_P4.png")
 plt.close()
 
 ###############################################################################
@@ -3736,10 +3736,3 @@ with pd.ExcelWriter("Performance Measures.xlsx") as writer:
     t_syn_P4.to_excel(writer, sheet_name="P4 - Synthetic")
     t_minrisk.to_excel(writer, sheet_name="Conservative")
     t_optimal.to_excel(writer, sheet_name="Aggressive")
-###############################################################################
-
-
-# TODO: - compare Excel outputs to make sure code is correct
-#       - clean up graph organisation (delete first then change location and run code again)
-
-# should be completely done after that
