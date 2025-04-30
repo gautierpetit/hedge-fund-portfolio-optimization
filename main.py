@@ -1817,7 +1817,7 @@ plt.close()
 
 # Minimum risk cvar
 
-weight_syn_CVAR_mint = pf.init_weights_mint(rw_corr_number)
+weight_syn_CVAR_mint = pf.init_weights_mint(rw_corr_returns)
 
 for i in tqdm(range(rw_corr_number), desc="syn CVAR mint optimization"):
     prev = weight_syn_CVAR_mint[i - 1] if i > 0 else weight_syn_CVAR_mint[0]
@@ -1838,7 +1838,7 @@ t_syn_CVAR_mint = syn_CVAR_mint.compute_table()
 
 # Optimal CVAR:
 
-weight_syn_CVAR_risk_mint = pf.init_weights_mint(rw_corr_number)
+weight_syn_CVAR_risk_mint = pf.init_weights_mint(rw_corr_returns)
 
 turnover_penalty = 0.3
 w0 = None
@@ -1891,7 +1891,7 @@ t_syn_CVAR_risk_mint = syn_CVAR_risk_mint.compute_table()
 
 # Minimum risk CDAR:
 
-weight_syn_CDAR_mint = pf.init_weights_mint(rw_corr_number)
+weight_syn_CDAR_mint = pf.init_weights_mint(rw_corr_returns)
 
 for i in tqdm(range(rw_corr_number), desc="syn CDAR mint optimization"):
     prev = weight_syn_CDAR_mint[i - 1] if i > 0 else weight_syn_CDAR_mint[0]
@@ -1913,7 +1913,7 @@ t_syn_CDAR_mint = syn_CDAR_mint.compute_table()
 
 # Optimal CDAR:
 
-weight_syn_CDAR_risk_mint = pf.init_weights_mint(rw_corr_number)
+weight_syn_CDAR_risk_mint = pf.init_weights_mint(rw_corr_returns)
 
 turnover_penalty = 0.3
 w0 = None
@@ -1966,7 +1966,7 @@ t_syn_CDAR_risk_mint = syn_CDAR_risk_mint.compute_table()
 
 # Minimum risk Omega:
 
-weight_syn_Omegamin_mint = pf.init_weights_mint(rw_corr_number)
+weight_syn_Omegamin_mint = pf.init_weights_mint(rw_corr_returns)
 
 for i in tqdm(range(rw_corr_number), desc="syn Omegamin mint optimization"):
     prev = weight_syn_Omegamin_mint[i - 1] if i > 0 else weight_syn_Omegamin_mint[0]
@@ -1987,7 +1987,7 @@ t_syn_Omegamin_mint = syn_Omegamin_mint.compute_table()
 
 # Optimal Omega:
 
-weight_syn_Omegamax_mint = pf.init_weights_mint(rw_corr_number)
+weight_syn_Omegamax_mint = pf.init_weights_mint(rw_corr_returns)
 
 turnover_penalty = 0.3
 w0 = None
@@ -2806,7 +2806,7 @@ plt.close()
 
 # Minimum risk CVAR:
 
-weight_CVAR_mint_cons = pf.init_weights_mint(rw_number)
+weight_CVAR_mint_cons = pf.init_weights_mint(rw_returns)
 
 for i in tqdm(range(rw_number), desc="CVAR mint under constraint"):
     prev = weight_CVAR_mint_cons[i - 1] if i > 0 else weight_CVAR_mint_cons[0]
@@ -2837,7 +2837,7 @@ t_CVAR_mint_cons = CVAR_mint_cons.compute_table()
 
 # Optimal CVAR:
 
-weight_CVAR_risk_mint_cons = pf.init_weights_mint(rw_number)
+weight_CVAR_risk_mint_cons = pf.init_weights_mint(rw_returns)
 
 turnover_penalty = 0.3
 w0 = None
@@ -2897,7 +2897,7 @@ t_CVAR_risk_mint_cons = CVAR_risk_mint_cons.compute_table()
 
 # Minimum risk CDAR:
 
-weight_CDAR_mint_cons = pf.init_weights_mint(rw_number)
+weight_CDAR_mint_cons = pf.init_weights_mint(rw_returns)
 
 for i in tqdm(range(rw_number), desc="CDAR mint optimization under constraint"):
     prev = weight_CDAR_mint_cons[i - 1] if i > 0 else weight_CDAR_mint_cons[0]
@@ -2927,7 +2927,7 @@ t_CDAR_mint_cons = CDAR_mint_cons.compute_table()
 
 # Optimal CDAR:
 
-weight_CDAR_risk_mint_cons = pf.init_weights_mint(rw_number)
+weight_CDAR_risk_mint_cons = pf.init_weights_mint(rw_returns)
 
 turnover_penalty = 0.3
 w0 = None
@@ -2987,7 +2987,7 @@ t_CDAR_risk_mint_cons = CDAR_risk_mint_cons.compute_table()
 
 # Minimum risk Omega:
 
-weight_Omegamin_mint_cons = pf.init_weights_mint(rw_number)
+weight_Omegamin_mint_cons = pf.init_weights_mint(rw_returns)
 
 for i in tqdm(range(rw_number), desc="Omegamin mint optimization under constraint"):
     prev = weight_Omegamin_mint_cons[i - 1] if i > 0 else weight_Omegamin_mint_cons[0]
@@ -3020,7 +3020,7 @@ t_Omegamin_mint_cons = Omegamin_mint_cons.compute_table()
 
 # Optimal Omega:
 
-weight_Omegamax_mint_cons = pf.init_weights_mint(rw_number)
+weight_Omegamax_mint_cons = pf.init_weights_mint(rw_returns)
 
 turnover_penalty = 0.3
 w0 = None
@@ -3213,7 +3213,7 @@ plt.close()
 
 # Minimum risk cvar
 
-weight_syn_CVAR_mint_cons = pf.init_weights_mint(rw_corr_number)
+weight_syn_CVAR_mint_cons = pf.init_weights_mint(rw_corr_returns)
 
 for i in tqdm(
     range(rw_corr_number), desc="syn CVAR mint optimization under constraint"
@@ -3248,7 +3248,7 @@ t_syn_CVAR_mint_cons = syn_CVAR_mint_cons.compute_table()
 
 # Optimal CVAR:
 
-weight_syn_CVAR_risk_mint_cons = pf.init_weights_mint(rw_corr_number)
+weight_syn_CVAR_risk_mint_cons = pf.init_weights_mint(rw_corr_returns)
 
 turnover_penalty = 0.3
 w0 = None
@@ -3317,7 +3317,7 @@ t_syn_CVAR_risk_mint_cons = syn_CVAR_risk_mint_cons.compute_table()
 
 # Minimum risk CDAR:
 
-weight_syn_CDAR_mint_cons = pf.init_weights_mint(rw_corr_number)
+weight_syn_CDAR_mint_cons = pf.init_weights_mint(rw_corr_returns)
 
 for i in tqdm(
     range(rw_corr_number), desc="syn CDAR mint optimization under constraint"
@@ -3352,7 +3352,7 @@ t_syn_CDAR_mint_cons = syn_CDAR_mint_cons.compute_table()
 
 # Optimal CDAR:
 
-weight_syn_CDAR_risk_mint_cons = pf.init_weights_mint(rw_corr_number)
+weight_syn_CDAR_risk_mint_cons = pf.init_weights_mint(rw_corr_returns)
 
 turnover_penalty = 0.3
 w0 = None
@@ -3422,7 +3422,7 @@ t_syn_CDAR_risk_mint_cons = syn_CDAR_risk_mint_cons.compute_table()
 
 # Minimum risk Omega:
 
-weight_syn_Omegamin_mint_cons = pf.init_weights_mint(rw_corr_number)
+weight_syn_Omegamin_mint_cons = pf.init_weights_mint(rw_corr_returns)
 
 for i in tqdm(
     range(rw_corr_number), desc="syn Omegamin mint optimization under constraint"
@@ -3461,7 +3461,7 @@ t_syn_Omegamin_mint_cons = syn_Omegamin_mint_cons.compute_table()
 
 # Optimal Omega:
 
-weight_syn_Omegamax_mint_cons = pf.init_weights_mint(rw_corr_number)
+weight_syn_Omegamax_mint_cons = pf.init_weights_mint(rw_corr_returns)
 
 turnover_penalty = 0.3
 w0 = None
