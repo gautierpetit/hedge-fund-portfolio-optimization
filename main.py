@@ -17,10 +17,8 @@ from scipy.stats import genpareto, t
 from statsmodels.distributions.copula.api import StudentTCopula
 from scipy.ndimage import gaussian_filter1d
 from tqdm import tqdm
-from scipy.optimize import minimize
 import seaborn as sns
 import copy
-from sklearn.linear_model import LinearRegression
 
 # Custom files
 import portfolios_functions as pf
@@ -524,7 +522,6 @@ semipara_std_residuals = pd.DataFrame(
 
 # Replace tails with parametrically estimated ones
 for col in Returns.columns:
-
     semipara_std_residuals.loc[lower_returns[col].index, col] = lower_returns[col]
     semipara_std_residuals.loc[upper_returns[col].index, col] = upper_returns[col]
 
@@ -579,7 +576,6 @@ for col in Returns.columns:
 # Combine synthetic tails and smoothed center
 
 for col in Returns.columns:
-
     semipara_std_residuals.loc[smoothed_returns[col].index, col] = smoothed_returns[col]
     # Plot residuals before and after semi-parametric approach
     """
@@ -1523,7 +1519,6 @@ for i in tqdm(range(rw_number), desc="CVAR risk mint optimization"):
     length_diff = len(weight_CVAR_risk_mint[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 
@@ -1589,7 +1584,6 @@ for i in tqdm(range(rw_number), desc="CDAR risk mint optimization"):
     length_diff = len(weight_CDAR_risk_mint[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 
@@ -1658,7 +1652,6 @@ for i in tqdm(range(rw_number), desc="Omegamax mint optimization"):
     length_diff = len(weight_Omegamax_mint[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 
@@ -1866,7 +1859,6 @@ for i in tqdm(range(rw_corr_number), desc="syn CVAR risk mint optimization"):
     length_diff = len(weight_syn_CVAR_risk_mint[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 
@@ -1941,7 +1933,6 @@ for i in tqdm(range(rw_corr_number), desc="syn CDAR risk mint optimization"):
     length_diff = len(weight_syn_CDAR_risk_mint[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 
@@ -2015,7 +2006,6 @@ for i in tqdm(range(rw_corr_number), desc="syn Omegamax mint optimization"):
     length_diff = len(weight_syn_Omegamax_mint[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 
@@ -2869,7 +2859,6 @@ for i in tqdm(range(rw_number), desc="CVAR risk mint optimization under constrai
     length_diff = len(weight_CVAR_risk_mint_cons[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 
@@ -2959,7 +2948,6 @@ for i in tqdm(range(rw_number), desc="CDAR risk mint optimization under constrai
     length_diff = len(weight_CDAR_risk_mint_cons[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 
@@ -3052,7 +3040,6 @@ for i in tqdm(range(rw_number), desc="Omegamax mint optimization under constrain
     length_diff = len(weight_Omegamax_mint_cons[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 
@@ -3286,7 +3273,6 @@ for i in tqdm(
     length_diff = len(weight_syn_CVAR_risk_mint_cons[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 
@@ -3390,7 +3376,6 @@ for i in tqdm(
     length_diff = len(weight_syn_CDAR_risk_mint_cons[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 
@@ -3499,7 +3484,6 @@ for i in tqdm(
     length_diff = len(weight_syn_Omegamax_mint_cons[i]) - len(w0)
 
     if length_diff > 0:
-
         zeros_df = pd.DataFrame(0, index=np.arange(length_diff), columns=w0.columns)
         w0 = pd.concat([w0, zeros_df])
 

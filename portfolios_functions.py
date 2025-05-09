@@ -190,7 +190,6 @@ def MVP(
 
     # Objective function
     def objective(x):
-
         obj_value = (x.T @ covariance @ x) ** 0.5
 
         if prev_weights is not None:
@@ -258,7 +257,6 @@ def CVAR(
 
     # Objective function
     def objective(x):
-
         portfolio_ret = portfolio_return(x)
         obj_value = cvar(portfolio_ret, 0.05)
 
@@ -327,7 +325,6 @@ def CDAR(
 
     # Objective function
     def objective(x):
-
         portfolio_ret = portfolio_return(x)
         obj_value = cdar(portfolio_ret, 0.05)
 
@@ -396,7 +393,6 @@ def Omega_min(
 
     # Objective function
     def objective(x):
-
         portfolio_ret = portfolio_return(x)
         obj_value = omega_denum(portfolio_ret, rf)
 
@@ -471,7 +467,6 @@ def MV_risk(
 
     # Objective function
     def objective(x):
-
         portfolio_ret = portfolio_return(x)
         obj_value = -(portfolio_ret[-1] - rf) / ((x.T @ covariance @ x) ** 0.5)
 
@@ -540,7 +535,6 @@ def CVAR_risk(
 
     # Objective function
     def objective(x):
-
         portfolio_ret = portfolio_return(x)
         cvar_value = cvar(portfolio_ret, alpha=0.05)
         obj_value = -((portfolio_ret[-1] - rf) / cvar_value)
@@ -610,7 +604,6 @@ def CDAR_risk(
 
     # Objective function
     def objective(x):
-
         portfolio_ret = portfolio_return(x)
         cdar_value = cdar(portfolio_ret, alpha=0.05)
         obj_value = -((portfolio_ret[-1] - rf) / cdar_value)
@@ -680,7 +673,6 @@ def Omega_max(
 
     # Objective function
     def objective(x):
-
         portfolio_ret = portfolio_return(x)
         obj_value = -omega_ratio(portfolio_ret, rf)
 
@@ -769,7 +761,6 @@ class Portfolio:
         ].index
 
     def compute_aum(self):
-
         aum = pd.Series(
             data=[100] * (len(self.weight) + 1),
             index=self.index_full_syn if self.syn else self.index_full,
@@ -867,7 +858,6 @@ class Portfolio:
         return correl
 
     def compute_correlation_syn(self, corr_data):
-
         correl = pd.Series(
             data=[np.nan] * self.data.rw_corr_number,
             index=self.index_correlation_syn if self.syn else self.index_correlation,
@@ -908,7 +898,6 @@ class Portfolio:
         return average_excess_return / tracking_error
 
     def _max_drawdown(self, aum):
-
         n = len(aum)
         peak = aum.iloc[0]
         max_dd = 0.0
