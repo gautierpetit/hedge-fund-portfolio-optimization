@@ -19,6 +19,6 @@ These templates mirror the structure expected by the code:
 
 > Note: These templates contain no actual return or index data — they are purely structural.
 
-## 🔗 Additional Data
+## Additional Data
 
 Complementary macroeconomic and benchmark data (e.g., Treasury yields, equity indices) was sourced from the [FRED database](https://fred.stlouisfed.org).
