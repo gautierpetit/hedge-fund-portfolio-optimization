@@ -352,7 +352,7 @@ plt.legend(Returns.columns, loc="upper center", bbox_to_anchor=(0.5, -0.06), nco
 plt.autoscale(tight="x")
 plt.ylabel("Index returns")
 plt.xlabel("Time")
-plt.savefig("figures/Returns.png")
+plt.savefig("figures/returns.png")
 plt.close()
 
 Price.plot(figsize=(16, 9))
@@ -362,7 +362,7 @@ plt.xlabel("Time")
 plt.ylim(0, 30000)
 plt.legend(Price.columns, loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=5)
 plt.title("Prices of of HFRI indices")
-plt.savefig("figures/Price.png")
+plt.savefig("figures/prices.png")
 plt.close()
 
 
@@ -931,7 +931,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=4,
 )
-plt.savefig("figures/Benchmark.png")
+plt.savefig("figures/benchmark.png")
 plt.close()
 
 
