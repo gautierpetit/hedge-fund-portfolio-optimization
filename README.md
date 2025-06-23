@@ -37,6 +37,7 @@ over 30 years of data. The findings reveal that the proposed model significantly
 
 ## Repository Structure
 
+```plaintext
 ├── /data/ # Input folder (excluded from Git) for raw data; templates provided
 ├── /figures/ # Contains all output graphs used in the thesis
 │ ├── Correlation/ # Correlation of constrained vs. unconstrained portfolios to benchmarks
@@ -50,6 +51,7 @@ over 30 years of data. The findings reveal that the proposed model significantly
 ├── README.md # Project overview, structure, usage instructions, and licensing notes
 ├── requirements.txt # Python dependencies for environment setup
 └── thesis.pdf # Final version of the academic thesis (public and defended)
+```
 
 *Note: The `/data/` folder does not contain the original HFR data due to licensing restrictions. Templates are provided to allow replication for users with data access.*
 
