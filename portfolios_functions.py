@@ -1029,7 +1029,7 @@ class Portfolio:
         ax.set_xlabel("Time")
         ax.set_ylim(0, 1)
         ax.set_title(f"Weight allocation: {self.name} portfolio")
-        fig.savefig(f"Graphs/Stackplots/{self.name}.png")
+        fig.savefig(f"figures/stackplots/{self.name}.png")
         plt.close(fig)
 
     def turnover_plot(self, to_comp):
@@ -1066,7 +1066,7 @@ class Portfolio:
         plt.ylim(0, 2)
         plt.ylabel("Turnover")
         plt.xlabel("Time")
-        plt.savefig(f"Graphs/Turnover/{self.name}_costs.png")
+        plt.savefig(f"figures/turnover/{self.name}_costs.png")
         plt.close(fig)
 
     def correlation_plot(self, corrsp_comp, corrbond_comp):
@@ -1107,7 +1107,7 @@ class Portfolio:
         plt.xlabel("Time")
         plt.ylabel("Correlation")
         plt.ylim(-1, 1)
-        plt.savefig(f"Graphs/Correlation/{self.name}_correlations.png")
+        plt.savefig(f"figures/correlation/{self.name}_correlations.png")
         plt.close(fig)
 
 
