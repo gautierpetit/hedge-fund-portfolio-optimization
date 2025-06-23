@@ -1,1 +1,7 @@
 __pycache__/
+
+data/*
+
+!data/bench_template.xlsx
+!data/data_template.xlsx
+!data/README.md

@@ -1,14 +1,87 @@
-# MasterThesis
+# Hedge Fund Portfolio Optimization: A Semi-Parametric Approach
 
-This repository contains the data and code used for the master's thesis "Hedge 
-Fund Portfolio Optimization: A Semi-Parametric Approach".
-All the code is the property of the author: Gautier Petit
-This work paper is under the responsibility of the author, it doesn’t engage 
-the responsibilit of the University, nor the responsibility of the supervising 
-Professor.
+This repository contains the code and related files developed for my Master's thesis in Finance at the University of Lausanne (HEC Lausanne).  
+The thesis explores a hybrid portfolio optimization framework combining parametric and non-parametric techniques to better capture fat tails, skewness, and other non-normal features present in hedge fund returns.
 
-This thesis was submitted in fulfillment for the degree of Master of Science in
-Finance (MScF):
-Supervisor: Thomas Cho, University of Lausanne
-Expert: Francois-Serge Lhabitant, HKUST and Kedge Capital
-Swiss Grade: 6/6
+---
+
+## Thesis Details
+
+**Title:** Hedge Fund Portfolio Optimization: A Semi-Parametric Approach  
+**Author:** Gautier Petit  
+**Program:** Master of Science in Finance (MScF), HEC Lausanne – University of Lausanne  
+**Grade:** 6/6 (First-Class Honours Equivalent)  
+**Supervisor:** Prof. Thomas Cho, HEC Lausanne  
+**Expert:** Prof. François-Serge Lhabitant, HKUST / Kedge Capital  
+**Date:** August 2024  
+
+**Disclaimer:**  
+All code is the property of the author, Gautier Petit. This work is shared for educational and demonstrative purposes.  
+The opinions and findings expressed herein are those of the author and do not represent the views of the University or supervising faculty.
+
+---
+
+## Project Summary
+
+This repository contains the code and results developed for my Master's thesis on hedge fund portfolio optimization. The project introduces a semi-parametric optimization framework that blends the statistical rigor of parametric methods (e.g., GARCH models, EVT) with the flexibility of non-parametric techniques (e.g., kernel density estimation, copulas).
+The goal is to overcome the limitations of traditional models when applied to hedge fund returns, which often exhibit fat tails, skewness, and other non-normal features. The methodology is tested on over 30 years of HFR strategy index data and shows significant improvements in risk-adjusted performance across several downside risk metrics.
+
+---
+
+## Abstract
+
+Hedge funds, with their complex investment strategies and distinct return distributions, pose significant challenges for traditional parametric portfolio optimization models. This research presents a semi-parametric approach to hedge fund portfolio optimization, to better capture the unconventional distributional characteristics of hedge fund returns. The semi-parametric methodology combines the strengths of both parametric and non-parametric approaches, addressing the limitations inherent in each. Traditional parametric models often fall short in capturing the higher moments and tail behaviors of hedge fund returns, while non-parametric methods, although flexible, can suffer from overfitting and computational inefficiency. We use hedge fund strategy indices from the HFR database to test our semi-parametric approach with
+over 30 years of data. The findings reveal that the proposed model significantly improves risk-adjusted performance compared to traditional benchmarks, offering a robust framework for hedge fund portfolio optimization that aligns with real-world investment needs.
+
+---
+
+## Repository Structure
+
+├── /data/ # Input folder (excluded from Git) for raw data; templates provided
+├── /figures/ # Contains all output graphs used in the thesis
+│ ├── Correlation/ # Correlation of constrained vs. unconstrained portfolios to benchmarks
+│ ├── Turnover/ # Turnover comparison over time for each portfolio
+│ └── Stackplots/ # Stacked area plots of portfolio weights over time
+├── .gitignore # Git exclusion rules (excludes data files, etc.)
+├── Indexes summary.xlsx # Descriptive statistics (mean, vol, skew, kurtosis, ACF, test results) for HFR indices
+├── Performance Measures.xlsx # Final results from portfolio optimization under all modeling scenarios
+├── main.py # Main execution script for running the full optimization workflow
+├── portfolios_functions.py # Core functions for modeling, optimization, and evaluation
+├── README.md # Project overview, structure, usage instructions, and licensing notes
+├── requirements.txt # Python dependencies for environment setup
+└── thesis.pdf # Final version of the academic thesis (public and defended)
+
+*Note: The `/data/` folder does not contain the original HFR data due to licensing restrictions. Templates are provided to allow replication for users with data access.*
+
+---
+
+## How to Run
+
+1. Clone the repository:
+   git clone https://github.com/gautierpetit/hedge-fund-portfolio-optimization.git
+   cd hedge-fund-portfolio-optimization
+2. Install dependencies:
+   pip install -r requirements.txt
+3. Ensure the required data files are placed in the `/data/` folder as described in `/data/README.md`
+4. Run the main script:
+   main.py
+
+All figures generated by the optimization scripts are saved to `/figures/`.  
+Key summary plots are in the main folder, while additional diagnostic and component plots are in subfolders:
+- `Correlation/` → S&P and bond correlation over time
+- `Turnover/` → Portfolio turnover comparisons
+- `Stackplots/` → Visual breakdown of evolving portfolio weights
+
+---
+
+## License & Usage
+
+This project is for educational and non-commercial use only.  
+You may reference or cite this repository with attribution to the author.
+
+---
+
+## Contact
+
+For questions or collaboration opportunities, feel free to connect with me on [LinkedIn](https://www.linkedin.com/in/gautierpetitch/).
+

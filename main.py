@@ -1,12 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jun  7 00:02:43 2023
-
-@author: gauti
-"""
-
-# Import modules:
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -34,7 +25,7 @@ import portfolios_functions as pf
 
 
 Price = pd.read_excel(
-    "Data/HFRI_full.xlsx",
+    "data/HFRI_full.xlsx",
     sheet_name="Indices",
     index_col=0,
     parse_dates=True,
@@ -42,7 +33,7 @@ Price = pd.read_excel(
 )
 
 Benchmark = pd.read_excel(
-    "Data/Benchmark.xlsx", index_col=0, parse_dates=True, date_format="%m/%d/%Y"
+    "data/Benchmark.xlsx", index_col=0, parse_dates=True, date_format="%m/%d/%Y"
 )
 
 
@@ -106,7 +97,7 @@ Price.drop(columns=["Fund of Funds Composite"], inplace=True)
 ###############################################################################
 
 
-#                             Data analysis                                   #
+#                             data analysis                                   #
 
 
 ###############################################################################
@@ -350,7 +341,7 @@ del writer
 ###############################################################################
 
 
-#                           Data Plots                                        #
+#                           data Plots                                        #
 
 
 ###############################################################################
@@ -361,7 +352,7 @@ plt.legend(Returns.columns, loc="upper center", bbox_to_anchor=(0.5, -0.06), nco
 plt.autoscale(tight="x")
 plt.ylabel("Index returns")
 plt.xlabel("Time")
-plt.savefig("Graphs/Returns.png")
+plt.savefig("figures/Returns.png")
 plt.close()
 
 Price.plot(figsize=(16, 9))
@@ -371,7 +362,7 @@ plt.xlabel("Time")
 plt.ylim(0, 30000)
 plt.legend(Price.columns, loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=5)
 plt.title("Prices of of HFRI indices")
-plt.savefig("Graphs/Price.png")
+plt.savefig("figures/Price.png")
 plt.close()
 
 
@@ -697,7 +688,7 @@ for i in range(rw_corr_number):
 # Rolling window of correlation for both S&P and bond
 # Get the data necessary for the correlation to stocks
 bench_corr = pd.read_excel(
-    "Data/Benchmark.xlsx", sheet_name="Correlation", index_col=0, parse_dates=True
+    "data/Benchmark.xlsx", sheet_name="Correlation", index_col=0, parse_dates=True
 )
 
 bench_corr.index = pd.to_datetime(bench_corr.index, format="%Y-%m-%d")
@@ -778,7 +769,7 @@ del i
 ###############################################################################
 
 Riskfree = pd.read_excel(
-    "Data/Benchmark.xlsx",
+    "data/Benchmark.xlsx",
     sheet_name="Tbill 10y",
     index_col=0,
     parse_dates=True,
@@ -841,7 +832,7 @@ data = pf.PortfolioData(
 )
 
 
-t_FoF = pd.read_excel("Data/HFRI_full.xlsx", sheet_name="FoF", index_col=0)
+t_FoF = pd.read_excel("data/HFRI_full.xlsx", sheet_name="FoF", index_col=0)
 
 # Equally weighted portfolio
 
@@ -940,7 +931,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=4,
 )
-plt.savefig("Graphs/Benchmark.png")
+plt.savefig("figures/Benchmark.png")
 plt.close()
 
 
@@ -1169,7 +1160,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/historical_P1_costs.png")
+plt.savefig("figures/historical_P1_costs.png")
 plt.close()
 
 
@@ -1209,7 +1200,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/historical_P1.png")
+plt.savefig("figures/historical_P1.png")
 plt.close()
 
 ###############################################################################
@@ -1413,7 +1404,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/synthetic_P1_costs.png")
+plt.savefig("figures/synthetic_P1_costs.png")
 plt.close()
 
 
@@ -1453,7 +1444,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/synthetic_P1.png")
+plt.savefig("figures/synthetic_P1.png")
 plt.close()
 
 
@@ -1753,7 +1744,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/historical_P2_costs.png")
+plt.savefig("figures/historical_P2_costs.png")
 plt.close()
 
 
@@ -1795,7 +1786,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/historical_P2.png")
+plt.savefig("figures/historical_P2.png")
 plt.close()
 
 
@@ -2107,7 +2098,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/synthetic_P2_costs.png")
+plt.savefig("figures/synthetic_P2_costs.png")
 plt.close()
 
 
@@ -2149,7 +2140,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/synthetic_P2.png")
+plt.savefig("figures/synthetic_P2.png")
 plt.close()
 
 
@@ -2416,7 +2407,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/historical_P3_costs.png")
+plt.savefig("figures/historical_P3_costs.png")
 plt.close()
 
 
@@ -2458,7 +2449,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/historical_P3.png")
+plt.savefig("figures/historical_P3.png")
 plt.close()
 
 
@@ -2734,7 +2725,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/synthetic_P3_costs.png")
+plt.savefig("figures/synthetic_P3_costs.png")
 plt.close()
 
 
@@ -2775,7 +2766,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/synthetic_P3.png")
+plt.savefig("figures/synthetic_P3.png")
 plt.close()
 
 ###############################################################################
@@ -3145,7 +3136,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/historical_P4_costs.png")
+plt.savefig("figures/historical_P4_costs.png")
 plt.close()
 
 
@@ -3187,7 +3178,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/historical_P4.png")
+plt.savefig("figures/historical_P4.png")
 plt.close()
 
 ###############################################################################
@@ -3588,7 +3579,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/synthetic_P4_costs.png")
+plt.savefig("figures/synthetic_P4_costs.png")
 plt.close()
 
 # Without costs:
@@ -3629,7 +3620,7 @@ plt.legend(
     bbox_to_anchor=(0.5, -0.06),
     ncol=5,
 )
-plt.savefig("Graphs/synthetic_P4.png")
+plt.savefig("figures/synthetic_P4.png")
 plt.close()
 
 ###############################################################################
