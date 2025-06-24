@@ -85,5 +85,5 @@ You may reference or cite this repository with attribution to the author.
 
 ## Contact
 
-For questions or collaboration opportunities, feel free to connect with me on [LinkedIn](https://www.linkedin.com/in/gautierpetitch/).
+Feel free to connect with me on [LinkedIn](https://www.linkedin.com/in/gautierpetitch/).
 
