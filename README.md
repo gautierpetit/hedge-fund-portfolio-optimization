@@ -38,19 +38,19 @@ over 30 years of data. The findings reveal that the proposed model significantly
 ## Repository Structure
 
 ```plaintext
-├── /data/ # Input folder (excluded from Git) for raw data; templates provided
-├── /figures/ # Contains all output graphs used in the thesis
-│ ├── Correlation/ # Correlation of constrained vs. unconstrained portfolios to benchmarks
-│ ├── Turnover/ # Turnover comparison over time for each portfolio
-│ └── Stackplots/ # Stacked area plots of portfolio weights over time
-├── .gitignore # Git exclusion rules (excludes data files, etc.)
-├── Indexes summary.xlsx # Descriptive statistics (mean, vol, skew, kurtosis, ACF, test results) for HFR indices
+├── /data/                    # Input folder (excluded from Git) for raw data; templates provided
+├── /figures/                 # Contains all output graphs used in the thesis
+│ ├── Correlation/            # Correlation of constrained vs. unconstrained portfolios to benchmarks
+│ ├── Turnover/               # Turnover comparison over time for each portfolio
+│ └── Stackplots/             # Stacked area plots of portfolio weights over time
+├── .gitignore                # Git exclusion rules (excludes data files, etc.)
+├── Indexes summary.xlsx      # Descriptive statistics (mean, vol, skew, kurtosis, ACF, test results) for HFR indices
 ├── Performance Measures.xlsx # Final results from portfolio optimization under all modeling scenarios
-├── main.py # Main execution script for running the full optimization workflow
-├── portfolios_functions.py # Core functions for modeling, optimization, and evaluation
-├── README.md # Project overview, structure, usage instructions, and licensing notes
-├── requirements.txt # Python dependencies for environment setup
-└── thesis.pdf # Final version of the academic thesis (public and defended)
+├── main.py                   # Main execution script for running the full optimization workflow
+├── portfolios_functions.py   # Core functions for modeling, optimization, and evaluation
+├── README.md                 # Project overview, structure, usage instructions, and licensing notes
+├── requirements.txt          # Python dependencies for environment setup
+└── thesis.pdf                # Final version of the academic thesis (public and defended)
 ```
 
 *Note: The `/data/` folder does not contain the original HFR data due to licensing restrictions. Templates are provided to allow replication for users with data access.*
@@ -60,7 +60,7 @@ over 30 years of data. The findings reveal that the proposed model significantly
 ## How to Run
 
 1. Clone the repository:
-   git clone https://github.com/gautierpetit/hedge-fund-portfolio-optimization.git
+   git clone https://github.com/gautierpetit/hedge-fund-portfolio-optimization.git 
    cd hedge-fund-portfolio-optimization
 2. Install dependencies:
    pip install -r requirements.txt
