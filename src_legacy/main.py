@@ -12,7 +12,7 @@ import seaborn as sns
 import copy
 
 # Custom files
-import portfolios_functions as pf
+import src_legacy.portfolios_functions as pf
 
 
 ###############################################################################
